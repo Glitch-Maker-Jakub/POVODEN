@@ -2,6 +2,7 @@ import { COL, FONT, makeButton, fitCamera, DESIGN_W, DESIGN_H } from '../ui/widg
 import { MUNICIPALITIES } from '../data/gameData.js';
 import { sfx } from '../ui/sfx.js';
 import { t, toggleLang } from '../i18n.js';
+import { consentState, setConsent, participantId } from '../net/telemetry.js';
 
 const Phaser = window.Phaser;
 
@@ -64,7 +65,12 @@ export default class MenuScene extends Phaser.Scene {
 
     makeButton(this, width / 2 - 150, height - 90, 280, 64, t('menu.start'), () => {
       sfx.resume(); sfx.click();
-      this.scene.start('Game', { playerMuniId: this.chosen });
+      // First-ever campaign: ask for research consent once, then start.
+      if (consentState() === null) {
+        this.showConsent(() => this.scene.start('Game', { playerMuniId: this.chosen }));
+      } else {
+        this.scene.start('Game', { playerMuniId: this.chosen });
+      }
     }, { fill: 0x1f7a3d, fillHover: 0x2a9b4f, fontSize: 20 });
 
     makeButton(this, width / 2 + 160, height - 90, 200, 64, t('menu.howto'), () => {
@@ -85,6 +91,50 @@ export default class MenuScene extends Phaser.Scene {
     this.add.text(width / 2, height - 34, t('menu.footer'),
       { fontFamily: FONT, fontSize: '12px', color: COL.inkDim }
     ).setOrigin(0.5);
+
+    // Research-consent toggle (top-left, mirroring the language toggle). Click:
+    // never-asked → show the dialog; already decided → flip the decision.
+    this.researchBtn = makeButton(this, 120, 40, 200, 40, '', () => {
+      sfx.click();
+      if (consentState() === null) this.showConsent(() => this.refreshResearch());
+      else { setConsent(consentState() !== 'yes'); this.refreshResearch(); }
+    }, { fontSize: 12 });
+    this.researchId = this.add.text(20, 66, '', {
+      fontFamily: FONT, fontSize: '10px', color: COL.inkDim,
+    });
+    this.refreshResearch();
+  }
+
+  refreshResearch() {
+    const on = consentState() === 'yes';
+    this.researchBtn.txt.setText(on ? t('research.on') : t('research.off'));
+    this.researchId.setText(on ? t('research.id', { id: participantId() }) : '');
+  }
+
+  // One-time, plain-language research-consent dialog (opt-in, revocable).
+  showConsent(onDone) {
+    const width = DESIGN_W, height = DESIGN_H;
+    const pw = 680, ph = 420;
+    const group = [];
+    const add = (o) => { group.push(o); return o; };
+    add(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7).setInteractive());
+    add(this.add.rectangle(width / 2, height / 2, pw, ph, 0x111a2c).setStrokeStyle(3, 0xc9a24b));
+    add(this.add.text(width / 2, height / 2 - ph / 2 + 28, t('research.title'), {
+      fontFamily: FONT, fontSize: '18px', color: '#e8c879', fontStyle: 'bold',
+    }).setOrigin(0.5));
+    add(this.add.text(width / 2 - pw / 2 + 30, height / 2 - ph / 2 + 60, t('research.body'), {
+      fontFamily: FONT, fontSize: '13px', color: COL.ink, wordWrap: { width: pw - 60 }, lineSpacing: 5,
+    }).setOrigin(0, 0));
+    const done = (yes) => {
+      sfx.click(); setConsent(yes);
+      group.forEach((o) => o.destroy()); yesBtn.destroy(); noBtn.destroy();
+      this.refreshResearch();
+      onDone();
+    };
+    const yesBtn = makeButton(this, width / 2 - 130, height / 2 + ph / 2 - 40, 230, 48,
+      t('research.yes'), () => done(true), { fill: 0x1f7a3d, fillHover: 0x2a9b4f, fontSize: 14 });
+    const noBtn = makeButton(this, width / 2 + 130, height / 2 + ph / 2 - 40, 230, 48,
+      t('research.no'), () => done(false), { fontSize: 14 });
   }
 
   highlightPick() {

@@ -48,6 +48,16 @@ game is hosted elsewhere, point it at the API by defining
 `window.POVODEN_API = "https://your-server/api"` before the game scripts load
 (see `index.html`). Details: [`server/README.md`](server/README.md).
 
+## Research telemetry (opt-in)
+
+For the accompanying study, the game can record in-game decisions and round outcomes
+— **only after the player explicitly consents** (asked once, revocable from the menu).
+The record is pseudonymous by design: a browser-generated random UUID, no personal
+data. Each participant's campaigns are numbered, giving the longitudinal axis for
+behavior-change analysis (e.g. does the cooperation ratio rise across repeated play?).
+Participants see their ID in the menu and can request erasure
+(`DELETE /api/participant/:id`). Example research queries: [`server/README.md`](server/README.md).
+
 ## How it maps to the paper
 
 The scientifically grounded layers from the chapter are implemented as real,

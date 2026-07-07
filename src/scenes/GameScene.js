@@ -3,6 +3,7 @@ import { sfx } from '../ui/sfx.js';
 import { writeArticle, postMortem, finalReport, roundBriefing } from '../ui/newspaper.js';
 import { t, getLang } from '../i18n.js';
 import { submitScore, promptName } from '../net/scoreboard.js';
+import { beginCampaign, logEvent, flush as flushTelemetry } from '../net/telemetry.js';
 import {
   createGameState, PHASE, muniById, playerMuni,
   purchase, canInvest, resolveRound, advanceRound, regionalScore,
@@ -58,7 +59,10 @@ export default class GameScene extends Phaser.Scene {
     this.buildCardHand();
     this.buildTooltips();
     this.refreshAll();
-    if (this.gs.round === 1) this.showAdvisor(t('advisor.1'));
+    if (this.gs.round === 1) {
+      beginCampaign(playerMuni(this.gs).def.name);   // opt-in research: campaign start
+      this.showAdvisor(t('advisor.1'));
+    }
   }
 
   // Hover tooltips that explain the HUD symbols a non-gamer won't recognise.
@@ -148,6 +152,7 @@ export default class GameScene extends Phaser.Scene {
     if (this.animating) return;
     const p = this.gs.proposals && this.gs.proposals[0];
     if (!p || p.accepted !== null) return;
+    logEvent('deal', { from: p.from, accepted: !!accept }, this.gs.round);
     if (accept) {
       acceptProposal(this.gs, p.id);
       sfx.deal();
@@ -165,6 +170,7 @@ export default class GameScene extends Phaser.Scene {
     if (this.animating) return;
     if (holdMeeting(this.gs)) {
       sfx.meeting();
+      logEvent('meeting', {}, this.gs.round);
       this.flashText(t('flash.meetingConvened'));
       this.refreshAll();
       this.showFloodTable();   // show the planning data they just paid for
@@ -258,6 +264,7 @@ export default class GameScene extends Phaser.Scene {
     if (this.animating) return;
     if (sharpenForecast(this.gs)) {
       sfx.click();
+      logEvent('sharpen', { level: this.gs.forecastLevel }, this.gs.round);
       this.flashText(t('flash.sharpened'));
       this.refreshAll();
     }
@@ -393,6 +400,7 @@ export default class GameScene extends Phaser.Scene {
     if (this.animating) return;
     if (askFavour(this.gs, this.targetId)) {
       sfx.deal();
+      logEvent('favour', { town: this.targetId }, this.gs.round);
       this.flashText(t('flash.favourCalled', { mayor: MAYORS[this.targetId].name }));
       this.refreshAll();
     }
@@ -450,6 +458,7 @@ export default class GameScene extends Phaser.Scene {
     const card = CARD_BY_ID[cardId];
     if (playCard(this.gs, cardId, this.targetId)) {
       sfx.card();
+      logEvent('card', { id: card.id, target: this.targetId }, this.gs.round);
       const cardName = t(`card.${card.id}.name`);
       let msg = t('flash.cardPlayed', { card: cardName });
       if (this.gs.lastAudit) msg = t('flash.cardReserves', { card: cardName, audit: this.gs.lastAudit.name, banked: this.gs.lastAudit.banked });
@@ -472,6 +481,7 @@ export default class GameScene extends Phaser.Scene {
     const ok = purchase(this.gs, this.gs.playerMuniId, this.targetId, key);
     if (ok) {
       sfx.invest();
+      logEvent('invest', { kind: key, target: this.targetId, own: this.targetId === this.gs.playerMuniId }, this.gs.round);
       this.flashText(t('flash.invested', { inv: t(`inv.${key}.name`), town: muniById(this.gs, this.targetId).def.name }));
       this.refreshAll();
     }
@@ -567,6 +577,20 @@ export default class GameScene extends Phaser.Scene {
     const width = DESIGN_W, height = DESIGN_H;
     const last = gs.log[gs.log.length - 1];
     const isFinal = gs.round >= BALANCE.totalRounds;
+
+    // Opt-in research: the round's outcome snapshot (decisions were logged live).
+    {
+      const ownRow = (gs.lastResults || []).find((r) => r.id === gs.playerMuniId) || { damage: 0, deaths: 0 };
+      const rels = Object.values(gs.relationship || {});
+      logEvent('round_end', {
+        sev: gs.regionalSeverity,
+        ownDmg: Math.round(ownRow.damage || 0), ownDeaths: ownRow.deaths || 0,
+        regDmg: Math.round(last.totalDamage || 0), regDeaths: last.totalDeaths || 0,
+        rel: rels.length ? Math.round(rels.reduce((a, b) => a + b, 0) / rels.length) : 50,
+        morale: playerMuni(gs).morale,
+      }, gs.round);
+      flushTelemetry();
+    }
     if (last.totalDeaths > 100 || last.totalDamage > 1500) sfx.bad(); else sfx.good();
 
     const art = writeArticle(gs);
@@ -685,6 +709,12 @@ export default class GameScene extends Phaser.Scene {
   showFinalBriefing() {
     const width = DESIGN_W, height = DESIGN_H;
     const rep = finalReport(this.gs);
+    // Opt-in research: the campaign's final outcome.
+    logEvent('campaign_end', {
+      score: rep.score, grade: rep.grade, re: rep.reElection, verdict: rep.verdictKey,
+      regDeaths: rep.regionDeaths, regDmg: rep.regionDamageRaw, town: rep.ownName,
+    });
+    flushTelemetry();
     const pw = 640, cx = width / 2;
     const left = cx - pw / 2 + 34, right = cx + pw / 2 - 34, wrap = pw - 68;
     const topM = 20;

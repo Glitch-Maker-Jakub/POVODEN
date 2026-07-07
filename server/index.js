@@ -32,7 +32,7 @@ app.use(express.json({ limit: '4kb' }));
 // CORS — the scoreboard is a public read/write API for a browser game.
 app.use((req, res, next) => {
   res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.set('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
@@ -133,6 +133,74 @@ app.post('/api/score', async (req, res) => {
     });
   } catch (e) {
     console.error('POST /api/score', e.message);
+    res.status(500).json({ error: 'db' });
+  }
+});
+
+// POST /api/events — batched research telemetry (STRICTLY OPT-IN client-side).
+// Body: { participantId, campaignId, campaignIndex, lang, events: [{type, round, payload, }] }
+// Pseudonymous by design: participantId is a client-generated random UUID.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const EVENT_TYPES = new Set([
+  'consent', 'campaign_start', 'invest', 'card', 'deal', 'meeting',
+  'favour', 'sharpen', 'round_end', 'campaign_end',
+]);
+
+app.post('/api/events', async (req, res) => {
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '?';
+  if (rateLimited(String(ip))) return res.status(429).json({ error: 'rate' });
+
+  const b = req.body || {};
+  if (!UUID_RE.test(String(b.participantId))) return res.status(400).json({ error: 'participant' });
+  if (!UUID_RE.test(String(b.campaignId))) return res.status(400).json({ error: 'campaign' });
+  const campaignIndex = Math.round(Number(b.campaignIndex));
+  if (!Number.isFinite(campaignIndex) || campaignIndex < 1 || campaignIndex > 100000) {
+    return res.status(400).json({ error: 'index' });
+  }
+  const lang = b.lang === 'cs' ? 'cs' : 'en';
+  const events = Array.isArray(b.events) ? b.events.slice(0, 100) : null;
+  if (!events || !events.length) return res.status(400).json({ error: 'events' });
+
+  const rows = [];
+  for (const e of events) {
+    const type = String(e.type || '');
+    if (!EVENT_TYPES.has(type)) continue;
+    const round = e.round == null ? null : Math.round(Number(e.round));
+    if (round !== null && (!Number.isFinite(round) || round < 0 || round > 100)) continue;
+    let payload = e.payload && typeof e.payload === 'object' ? e.payload : {};
+    if (JSON.stringify(payload).length > 2000) payload = {}; // cap oversized payloads
+    rows.push([b.participantId, b.campaignId, campaignIndex, round, type, payload, lang]);
+  }
+  if (!rows.length) return res.status(400).json({ error: 'events' });
+
+  try {
+    const values = [];
+    const params = [];
+    rows.forEach((r, i) => {
+      const o = i * 7;
+      values.push(`($${o + 1},$${o + 2},$${o + 3},$${o + 4},$${o + 5},$${o + 6},$${o + 7})`);
+      params.push(...r);
+    });
+    await pool.query(
+      `INSERT INTO events (participant_id, campaign_id, campaign_index, round, type, payload, lang)
+       VALUES ${values.join(',')}`,
+      params
+    );
+    res.json({ ok: true, stored: rows.length });
+  } catch (e) {
+    console.error('POST /api/events', e.message);
+    res.status(500).json({ error: 'db' });
+  }
+});
+
+// DELETE /api/participant/:id — GDPR erasure: a participant (who knows their
+// own ID, shown in the consent dialog) can have all their rows removed.
+app.delete('/api/participant/:id', async (req, res) => {
+  if (!UUID_RE.test(String(req.params.id))) return res.status(400).json({ error: 'participant' });
+  try {
+    const del = await pool.query('DELETE FROM events WHERE participant_id = $1', [req.params.id]);
+    res.json({ ok: true, deleted: del.rowCount });
+  } catch (e) {
     res.status(500).json({ error: 'db' });
   }
 });

@@ -135,6 +135,22 @@ const S = {
     'credits.thanks': 'With thanks to the three independent play testers whose sessions shaped the game’s onboarding and pacing, and to the audiences and reviewers of Videogame Cultures 2025.',
     'credits.license': 'Free software under the GNU Affero General Public License v3.0 · github.com/Glitch-Maker-Jakub/POVODEN',
 
+    // --- Research consent (opt-in telemetry) --------------------------------
+    'research.title': '🔬  HELP OUR RESEARCH?',
+    'research.body':
+      'POVODEŇ is part of a university research project on cooperation in flood management. ' +
+      'With your consent, the game will record your in-game decisions (investments, deals, ' +
+      'meetings) and round outcomes, so we can study how play changes across campaigns.\n\n' +
+      'Anonymous by design: a random ID is created in your browser — no name, no e-mail, ' +
+      'no personal data. You can turn this off at any time on the menu, and you can request ' +
+      'deletion of your data using your ID (shown on the menu).\n\n' +
+      'May we record your gameplay for research?',
+    'research.yes': 'YES, I’LL HELP',
+    'research.no': 'NO, JUST PLAY',
+    'research.on': '🔬 Research: ON',
+    'research.off': '🔬 Research: OFF',
+    'research.id': 'research ID: {id}',
+
     // --- HUD / top bar ----------------------------------------------------
     'hud.round': 'ROUND {n} / {total}',
     'hud.prep': '● PREPARATION',
@@ -505,6 +521,22 @@ const S = {
     'credits.agent': 'Implementaci, vyvažování, lokalizaci a ověřování provedl kódovací agent s velkým jazykovým modelem (Anthropic Claude Opus 4.7 / 4.8) pod vedením týmu — veškerá designová autorita zůstala lidskému týmu.',
     'credits.thanks': 'Děkujeme třem nezávislým testerům, jejichž hraní formovalo úvod a tempo hry, a publiku i recenzentům konference Videogame Cultures 2025.',
     'credits.license': 'Svobodný software pod licencí GNU Affero General Public License v3.0 · github.com/Glitch-Maker-Jakub/POVODEN',
+
+    // --- Souhlas s výzkumem (opt-in telemetrie) ------------------------------
+    'research.title': '🔬  POMŮŽETE NAŠEMU VÝZKUMU?',
+    'research.body':
+      'POVODEŇ je součástí univerzitního výzkumu spolupráce při zvládání povodní. ' +
+      'S vaším souhlasem bude hra zaznamenávat vaše herní rozhodnutí (investice, dohody, ' +
+      'setkání) a výsledky kol, abychom mohli zkoumat, jak se hraní mění napříč kampaněmi.\n\n' +
+      'Anonymní už z principu: ve vašem prohlížeči se vytvoří náhodné ID — žádné jméno, ' +
+      'žádný e-mail, žádné osobní údaje. Kdykoli to můžete v menu vypnout a pomocí svého ID ' +
+      '(zobrazeného v menu) požádat o smazání dat.\n\n' +
+      'Můžeme vaše hraní zaznamenávat pro výzkum?',
+    'research.yes': 'ANO, POMŮŽU',
+    'research.no': 'NE, JEN HRÁT',
+    'research.on': '🔬 Výzkum: ZAPNUTO',
+    'research.off': '🔬 Výzkum: VYPNUTO',
+    'research.id': 'výzkumné ID: {id}',
 
     // --- HUD --------------------------------------------------------------
     'hud.round': 'KOLO {n} / {total}',
