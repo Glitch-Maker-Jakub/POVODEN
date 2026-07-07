@@ -48,6 +48,20 @@ game is hosted elsewhere, point it at the API by defining
 `window.POVODEN_API = "https://your-server/api"` before the game scripts load
 (see `index.html`). Details: [`server/README.md`](server/README.md).
 
+### Embeddable scoreboard (e.g. on a faculty webpage)
+
+[`scoreboard.html`](scoreboard.html) is a standalone page showing the same all-time /
+monthly / weekly rankings — embed it anywhere with an iframe to motivate people to play:
+
+```html
+<iframe src="https://your-host/scoreboard.html?api=https://your-host/api&lang=cs"
+        style="width:100%;height:640px;border:0"></iframe>
+```
+
+Parameters: `api` (API base, default same-origin `/api`), `lang` (`en`/`cs`),
+`period` (initial tab: `all`/`month`/`week`), `limit` (rows), `refresh` (seconds,
+auto-refresh, default 60). It links back to the game hosted beside it.
+
 ## Research telemetry (opt-in)
 
 For the accompanying study, the game can record in-game decisions and round outcomes

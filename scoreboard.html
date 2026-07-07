@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>POVODEŇ — Scoreboard</title>
+  <!--
+    Standalone, embeddable scoreboard for the POVODEŇ serious game.
+    Drop into any page (e.g. a faculty website) with an iframe:
+
+      <iframe src="https://your-host/scoreboard.html?api=https://your-host/api&lang=cs"
+              style="width:100%;height:640px;border:0"></iframe>
+
+    Query parameters:
+      api     = API base URL           (default: /api — same origin)
+      lang    = en | cs                (default: en)
+      period  = all | month | week     (initial tab, default: all)
+      limit   = rows to show           (default: 15, max 50)
+      refresh = auto-refresh seconds   (default: 60, 0 = off)
+
+    Part of POVODEŇ — GNU AGPL v3.0.
+  -->
+  <style>
+    :root {
+      --bg: #0e1726; --panel: #15233b; --panel2: #1d3357; --line: #2a4a63;
+      --ink: #e6eef7; --dim: #8aa0bd; --gold: #ffd56b; --accent: #f1c40f;
+      --green: #7fd1a0;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+      font-family: "Consolas", "Menlo", monospace; }
+    .wrap { max-width: 860px; margin: 0 auto; padding: 22px 16px; }
+    h1 { font-size: 22px; text-align: center; margin: 0 0 4px; letter-spacing: 2px; }
+    .sub { text-align: center; color: var(--dim); font-size: 12px; margin-bottom: 18px; }
+    .tabs { display: flex; gap: 10px; justify-content: center; margin-bottom: 16px; flex-wrap: wrap; }
+    .tabs button {
+      font-family: inherit; font-size: 13px; padding: 9px 22px; cursor: pointer;
+      background: var(--panel2); color: var(--ink); border: 2px solid #3a5b8a;
+    }
+    .tabs button.on { background: #2a4a7a; border-color: var(--accent); }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th { text-align: left; color: var(--dim); font-size: 11px; font-weight: normal;
+      padding: 6px 8px; border-bottom: 1px solid var(--line); }
+    td { padding: 7px 8px; border-bottom: 1px solid #1a2a40; white-space: nowrap; }
+    td.num, th.num { text-align: right; }
+    tr.r1 td { color: var(--gold); }
+    tr.r2 td, tr.r3 td { color: #cfe0f5; }
+    .status { text-align: center; color: var(--dim); padding: 26px 10px; font-size: 14px; }
+    .status.warn { color: #ffcf8b; }
+    .foot { text-align: center; color: var(--dim); font-size: 11px; margin-top: 16px; }
+    .foot a { color: var(--green); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1 id="title">POVODEŇ</h1>
+    <div class="sub" id="subtitle"></div>
+    <div class="tabs">
+      <button id="tab-all"></button>
+      <button id="tab-month"></button>
+      <button id="tab-week"></button>
+    </div>
+    <table id="table" style="display:none">
+      <thead>
+        <tr>
+          <th>#</th><th id="h-name"></th><th id="h-town"></th>
+          <th class="num" id="h-score"></th><th id="h-grade"></th><th id="h-date"></th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="status" id="status"></div>
+    <div class="foot" id="foot"></div>
+  </div>
+
+  <script>
+    'use strict';
+    const qs = new URLSearchParams(location.search);
+    const API = (qs.get('api') || '/api').replace(/\/$/, '');
+    const LANG = qs.get('lang') === 'cs' ? 'cs' : 'en';
+    const LIMIT = Math.min(50, Math.max(1, parseInt(qs.get('limit') || '15', 10) || 15));
+    const REFRESH = Math.max(0, parseInt(qs.get('refresh') || '60', 10) || 0);
+    let period = ['all', 'month', 'week'].includes(qs.get('period')) ? qs.get('period') : 'all';
+
+    const S = {
+      en: { sub: 'Scoreboard — a serious game of flood management and cooperation',
+            all: 'ALL TIME', month: 'THIS MONTH', week: 'THIS WEEK',
+            name: 'MAYOR', town: 'TOWN', score: 'SCORE', grade: 'GRADE', date: 'DATE',
+            loading: 'Loading…', empty: 'No campaigns recorded yet — be the first mayor on the board.',
+            offline: 'Scoreboard server not reachable.',
+            foot: 'Play POVODEŇ:' },
+      cs: { sub: 'Žebříček — vážná hra o zvládání povodní a spolupráci',
+            all: 'CELKOVĚ', month: 'TENTO MĚSÍC', week: 'TENTO TÝDEN',
+            name: 'STAROSTA', town: 'OBEC', score: 'SKÓRE', grade: 'ZNÁMKA', date: 'DATUM',
+            loading: 'Načítám…', empty: 'Zatím žádné kampaně — buďte první starosta na tabuli.',
+            offline: 'Server žebříčku není dostupný.',
+            foot: 'Zahrajte si POVODEŇ:' },
+    }[LANG];
+
+    document.documentElement.lang = LANG;
+    document.getElementById('subtitle').textContent = S.sub;
+    document.getElementById('h-name').textContent = S.name;
+    document.getElementById('h-town').textContent = S.town;
+    document.getElementById('h-score').textContent = S.score;
+    document.getElementById('h-grade').textContent = S.grade;
+    document.getElementById('h-date').textContent = S.date;
+    // Link back to the game hosted next to this page.
+    const gameUrl = location.href.replace(/scoreboard\.html.*$/, '');
+    document.getElementById('foot').innerHTML =
+      S.foot + ' <a href="' + gameUrl + '">' + gameUrl + '</a>';
+
+    const tabs = { all: document.getElementById('tab-all'),
+                   month: document.getElementById('tab-month'),
+                   week: document.getElementById('tab-week') };
+    Object.keys(tabs).forEach((p) => {
+      tabs[p].textContent = S[p];
+      tabs[p].onclick = () => { period = p; load(); };
+    });
+
+    async function load() {
+      Object.keys(tabs).forEach((p) => tabs[p].classList.toggle('on', p === period));
+      const table = document.getElementById('table');
+      const status = document.getElementById('status');
+      const rows = document.getElementById('rows');
+      status.textContent = S.loading; status.className = 'status';
+      try {
+        const ctl = new AbortController();
+        const timer = setTimeout(() => ctl.abort(), 6000);
+        const res = await fetch(API + '/scores?period=' + period + '&limit=' + LIMIT, { signal: ctl.signal });
+        clearTimeout(timer);
+        if (!res.ok) throw new Error(res.status);
+        const data = await res.json();
+        const entries = data.entries || [];
+        rows.innerHTML = '';
+        if (!entries.length) { table.style.display = 'none'; status.textContent = S.empty; return; }
+        const fmt = new Intl.DateTimeFormat(LANG === 'cs' ? 'cs-CZ' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        entries.forEach((e) => {
+          const tr = document.createElement('tr');
+          if (e.rank <= 3) tr.className = 'r' + e.rank;
+          const cells = [e.rank, e.name, e.town, e.score, e.grade, fmt.format(new Date(e.created_at))];
+          cells.forEach((v, i) => {
+            const td = document.createElement('td');
+            if (i === 3) td.className = 'num';
+            td.textContent = String(v);
+            tr.appendChild(td);
+          });
+          rows.appendChild(tr);
+        });
+        table.style.display = '';
+        status.textContent = '';
+      } catch (err) {
+        table.style.display = 'none';
+        status.textContent = S.offline;
+        status.className = 'status warn';
+      }
+    }
+
+    load();
+    if (REFRESH > 0) setInterval(load, REFRESH * 1000);
+  </script>
+</body>
+</html>

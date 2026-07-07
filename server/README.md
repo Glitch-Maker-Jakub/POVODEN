@@ -23,6 +23,12 @@ npm start
 `npm start` serves **both** the API and the static game from the repository root on
 `http://localhost:3000` — one process hosts everything.
 
+## Public scoreboard page
+
+`../scoreboard.html` is a standalone, iframe-embeddable view of the rankings (for a
+faculty webpage etc.): `scoreboard.html?api=https://your-host/api&lang=cs`. It is served
+automatically by this server alongside the game.
+
 ## Hosting the game separately
 
 If the static game lives on another host (e.g. university web space), run only this API
