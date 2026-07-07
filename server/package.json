@@ -1,0 +1,17 @@
+{
+  "name": "povoden-scoreboard",
+  "version": "1.0.0",
+  "description": "Optional PostgreSQL scoreboard server for the POVODEŇ serious game (all-time / monthly / weekly rankings). Also serves the static game.",
+  "license": "AGPL-3.0-only",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "pg": "^8.12.0"
+  }
+}

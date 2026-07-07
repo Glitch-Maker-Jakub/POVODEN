@@ -1,0 +1,22 @@
+# Secrets — never commit API keys (the game is publicly hosted)
+tools/.env.local
+.env
+.env.*
+server/.env
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+
+# Node (asset-gen tool and the optional scoreboard server; the game itself needs none)
+node_modules/
+npm-debug.log*
+
+# Local scratch
+*.log
+tmp/
+
+# Unpublished manuscript drafts — do not publish to the public repo
+# (remove this line deliberately if/when the article is published)
+FINAL_Article/
