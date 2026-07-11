@@ -1,7 +1,7 @@
 import { COL, FONT, makeButton, fitCamera, DESIGN_W, DESIGN_H } from '../ui/widgets.js';
 import { sfx } from '../ui/sfx.js';
 import { writeArticle, postMortem, finalReport, roundBriefing } from '../ui/newspaper.js';
-import { t, getLang } from '../i18n.js';
+import { t, getLang, fmtEuro } from '../i18n.js';
 import { submitScore, promptName } from '../net/scoreboard.js';
 import { beginCampaign, logEvent, flush as flushTelemetry } from '../net/telemetry.js';
 import {
@@ -12,8 +12,10 @@ import {
   acceptProposal, declineProposal, relationshipLabel,
   forecastBand, canSharpenForecast, sharpenForecast,
   canAskFavour, askFavour, oceanaLost, investmentCost, previewFlood,
+  boatsWereSent,
 } from '../model/gameState.js';
 import { runAllAI } from '../ai/mayorAI.js';
+import { gameImages, newsImages, queueMissing } from '../ui/assets.js';
 import {
   INVESTMENTS, INVESTMENT_ORDER, BALANCE,
   SEVERITY_COLORS, EXPOSURE, PRODUCERS, INVEST_RESOURCE,
@@ -40,6 +42,18 @@ export default class GameScene extends Phaser.Scene {
     this.nodes = {};
   }
 
+  preload() {
+    // Board art loads on campaign start, not at boot. On a restart everything
+    // is already in the texture cache and this queues nothing.
+    if (queueMissing(this, gameImages()) > 0) {
+      fitCamera(this);
+      this.add.rectangle(DESIGN_W / 2, DESIGN_H / 2, DESIGN_W, DESIGN_H, COL.bg);
+      const txt = this.add.text(DESIGN_W / 2, DESIGN_H / 2, t('loading'),
+        { fontFamily: FONT, fontSize: '20px', color: '#8aa0bd' }).setOrigin(0.5);
+      this.load.on('progress', (p) => txt.setText(`${t('loading')} ${Math.round(p * 100)}%`));
+    }
+  }
+
   create() {
     fitCamera(this);
     const width = DESIGN_W, height = DESIGN_H;
@@ -63,6 +77,9 @@ export default class GameScene extends Phaser.Scene {
       beginCampaign(playerMuni(this.gs).def.name);   // opt-in research: campaign start
       this.showAdvisor(t('advisor.1'));
     }
+    // Newspaper photos arrive in the background while the player prepares; the
+    // summary modal falls back to a plain banner if one is still in flight.
+    if (queueMissing(this, newsImages()) > 0) this.load.start();
   }
 
   // Hover tooltips that explain the HUD symbols a non-gamer won't recognise.
@@ -305,8 +322,8 @@ export default class GameScene extends Phaser.Scene {
 
     const ring = this.add.circle(0, 0, 42, 0x000000, 0).setStrokeStyle(4, COL.accent).setVisible(false);
     const idRing = this.add.circle(0, 0, 38, 0x0e1726, 0.45).setStrokeStyle(3, m.def.color);
-    const key = this.textures.exists(`town_${m.id}_t`) ? `town_${m.id}_t` : `town_${m.id}`;
-    const sprite = this.add.image(0, -2, key).setDisplaySize(74, 74);
+    // Town sprites ship pre-keyed (transparent background) — see tools/build-assets.py.
+    const sprite = this.add.image(0, -2, `town_${m.id}`).setDisplaySize(74, 74);
     const floodTint = this.add.circle(0, 0, 38, 0x16264f, 0).setVisible(false);
     // Small numbered identity badge (top-left) so the art reads clearly.
     const badge = this.add.circle(-26, -26, 12, m.def.color).setStrokeStyle(2, 0x0a1422);
@@ -619,7 +636,7 @@ export default class GameScene extends Phaser.Scene {
 
     // Realistic newspaper photo, chosen by the season's outcome.
     let imgKey = ({ calm: 'news_calm', mild: 'news_minor', damage: 'news_ruin', disaster: 'news_rescue' })[art.tone] || 'news_calm';
-    if ((gs.notifications || []).some((n) => n.includes('sent')) && (art.tone === 'calm' || art.tone === 'mild')) imgKey = 'news_cooperation';
+    if (boatsWereSent(gs.notifications) && (art.tone === 'calm' || art.tone === 'mild')) imgKey = 'news_cooperation';
     if (this.textures.exists(imgKey)) {
       add(this.add.image(cx, ty, imgKey).setDisplaySize(360, 202).setOrigin(0.5, 0));
       add(this.add.rectangle(cx, ty + 202 - 9, 360, 18, 0x1a1208, 0.85));
@@ -765,6 +782,7 @@ export default class GameScene extends Phaser.Scene {
           reElection: rep.reElection, regionDeaths: rep.regionDeaths,
           regionDamage: rep.regionDamageRaw, lang: getLang(),
         });
+        if (!subBtn.scene) return; // scene left / modal torn down while awaiting
         if (res && res.ok) {
           subBtn.done = true;
           subBtn.txt.setText(t('score.submitted', res.rank)).setFontSize(11);
@@ -954,10 +972,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   // --- little fx -------------------------------------------------------------
-  euro(m) {
-    if (!m || m < 1) return '€0';
-    return m >= 1000 ? `€${(m / 1000).toFixed(1)}B` : `€${Math.round(m)}M`;
-  }
+  euro(m) { return fmtEuro(m); }
 
   popText(x, y, str, color) {
     const t = this.add.text(x, y, str, { fontFamily: FONT, fontSize: '18px', color, fontStyle: 'bold' }).setOrigin(0.5);

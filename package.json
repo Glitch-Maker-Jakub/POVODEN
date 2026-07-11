@@ -1,0 +1,14 @@
+{
+  "name": "povoden",
+  "version": "0.1.0",
+  "private": true,
+  "description": "POVODEŇ — bilingual serious game on flood crisis management and inter-municipal cooperation",
+  "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "scripts": {
+    "test": "node --test \"tests/*.test.js\""
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

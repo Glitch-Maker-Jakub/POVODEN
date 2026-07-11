@@ -3,7 +3,8 @@
 // POVODEŇ — build-time asset generator (OpenRouter)
 // -----------------------------------------------------------------------------
 // Generates pixel-art image assets via OpenRouter and writes them as PNG files
-// into ../assets/. This runs on YOUR machine only — the API key never ships
+// into ../assets/src/ (the pipeline sources). This runs on YOUR machine only —
+// the API key never ships
 // inside the static game. Hosted players only ever load the produced PNGs.
 //
 // Usage:
@@ -22,7 +23,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ASSET_DIR = resolve(__dirname, '..', 'assets');
+const ASSET_DIR = resolve(__dirname, '..', 'assets', 'src');
 
 // OpenRouter image model. Alternatives that also output images:
 //   google/gemini-3.1-flash-image-preview, google/gemini-3-pro-image-preview,

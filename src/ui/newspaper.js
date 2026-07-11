@@ -7,14 +7,15 @@
 // =============================================================================
 
 import { MAYORS, EXPOSURE, RELATIONSHIP } from '../data/gameData.js';
-import { getLang, t } from '../i18n.js';
+import { boatHelpEvents, betrayalEvents } from '../model/gameState.js';
+import { getLang, t, fmtEuro, plural } from '../i18n.js';
 
-const euro = (m) => (!m || m < 1 ? '€0' : m >= 1000 ? `€${(m / 1000).toFixed(1)}bn` : `€${Math.round(m)}M`);
+const euro = fmtEuro;   // shared formatter — HUD and newspaper print money identically
 
 function pick(rng, arr) { return arr[Math.floor(rng() * arr.length)]; }
 
-// Czech count agreement: 1 -> one, 2–4 -> few, else -> many.
-function cz(n, one, few, many) { return n === 1 ? one : (n >= 2 && n <= 4 ? few : many); }
+// Czech count agreement via Intl.PluralRules (one / few / many-or-other).
+const cz = (n, one, few, many) => plural(n, { one, few, many });
 
 /**
  * Build the season's article from game state. Returns
@@ -35,8 +36,8 @@ export function writeArticle(gs) {
 
   const ordered = [...gs.munis].sort((a, b) => a.def.pos - b.def.pos);
   const wallers = ordered.filter((m) => m.leveesBuilt >= 2 && m.def.pos <= 4);
-  const helps = (gs.notifications || []).filter((n) => n.includes('sent'));
-  const betrayals = (gs.notifications || []).filter((n) => n.includes('betrayed'));
+  const helps = boatHelpEvents(gs.notifications);
+  const betrayals = betrayalEvents(gs.notifications);
   const dataLost = destroyed.some((m) => m.def.trait === 'dataVuln');
   const evtName = gs.currentEvent && gs.currentEvent.id !== 'calm' ? t(`event.${gs.currentEvent.id}.name`) : null;
   const sevLabel = t(`sev.${sev}`);

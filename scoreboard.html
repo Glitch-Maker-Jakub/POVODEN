@@ -73,10 +73,13 @@
     <div class="foot" id="foot"></div>
   </div>
 
-  <script>
+  <script type="module">
     'use strict';
     const qs = new URLSearchParams(location.search);
-    const API = (qs.get('api') || '/api').replace(/\/$/, '');
+    // The shared API client (src/net/) reads this global — one config source
+    // for the game AND this page. Requires hosting next to the game's src/.
+    window.POVODEN_API = (qs.get('api') || '/api').replace(/\/$/, '');
+    const { fetchScores } = await import('./src/net/scoreboard.js');
     const LANG = qs.get('lang') === 'cs' ? 'cs' : 'en';
     const LIMIT = Math.min(50, Math.max(1, parseInt(qs.get('limit') || '15', 10) || 15));
     const REFRESH = Math.max(0, parseInt(qs.get('refresh') || '60', 10) || 0);
@@ -123,36 +126,30 @@
       const status = document.getElementById('status');
       const rows = document.getElementById('rows');
       status.textContent = S.loading; status.className = 'status';
-      try {
-        const ctl = new AbortController();
-        const timer = setTimeout(() => ctl.abort(), 6000);
-        const res = await fetch(API + '/scores?period=' + period + '&limit=' + LIMIT, { signal: ctl.signal });
-        clearTimeout(timer);
-        if (!res.ok) throw new Error(res.status);
-        const data = await res.json();
-        const entries = data.entries || [];
-        rows.innerHTML = '';
-        if (!entries.length) { table.style.display = 'none'; status.textContent = S.empty; return; }
-        const fmt = new Intl.DateTimeFormat(LANG === 'cs' ? 'cs-CZ' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-        entries.forEach((e) => {
-          const tr = document.createElement('tr');
-          if (e.rank <= 3) tr.className = 'r' + e.rank;
-          const cells = [e.rank, e.name, e.town, e.score, e.grade, fmt.format(new Date(e.created_at))];
-          cells.forEach((v, i) => {
-            const td = document.createElement('td');
-            if (i === 3) td.className = 'num';
-            td.textContent = String(v);
-            tr.appendChild(td);
-          });
-          rows.appendChild(tr);
-        });
-        table.style.display = '';
-        status.textContent = '';
-      } catch (err) {
+      const { entries } = await fetchScores(period, LIMIT);   // shared client: abortable timeout, normalised errors
+      if (entries === null) {
         table.style.display = 'none';
         status.textContent = S.offline;
         status.className = 'status warn';
+        return;
       }
+      rows.innerHTML = '';
+      if (!entries.length) { table.style.display = 'none'; status.textContent = S.empty; return; }
+      const fmt = new Intl.DateTimeFormat(LANG === 'cs' ? 'cs-CZ' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      entries.forEach((e) => {
+        const tr = document.createElement('tr');
+        if (e.rank <= 3) tr.className = 'r' + e.rank;
+        const cells = [e.rank, e.name, e.town, e.score, e.grade, fmt.format(new Date(e.created_at))];
+        cells.forEach((v, i) => {
+          const td = document.createElement('td');
+          if (i === 3) td.className = 'num';
+          td.textContent = String(v);
+          tr.appendChild(td);
+        });
+        rows.appendChild(tr);
+      });
+      table.style.display = '';
+      status.textContent = '';
     }
 
     load();
