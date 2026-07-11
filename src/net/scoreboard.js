@@ -1,43 +1,30 @@
 // =============================================================================
-// Scoreboard client — talks to the optional server/ API. Every call degrades
-// gracefully: if the API is absent/unreachable the game keeps working and the
-// UI shows an "offline" state instead of an error.
+// Scoreboard client — talks to the optional server/ API through the shared
+// apiClient. Every call degrades gracefully: if the API is absent/unreachable
+// the game keeps working and the UI shows an "offline" state instead of an
+// error. Also imported by the standalone scoreboard.html page, so the game
+// and the embeddable board share one contract.
 // =============================================================================
 
-const API = () => (window.POVODEN_API || '/api').replace(/\/$/, '');
+import { apiFetch } from './apiClient.js';
 
-async function withTimeout(promise, ms = 6000) {
-  return Promise.race([
-    promise,
-    new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms)),
-  ]);
-}
-
-/** Fetch ranked entries for 'all' | 'month' | 'week'. Returns null when offline. */
+/**
+ * Fetch ranked entries for 'all' | 'month' | 'week'.
+ * Returns { entries, error }: entries is an array on success and null on any
+ * failure, with `error` carrying the normalised reason (NET_ERROR.*) so
+ * callers can log/branch internally while showing one simple message.
+ */
 export async function fetchScores(period = 'all', limit = 15) {
-  try {
-    const res = await withTimeout(fetch(`${API()}/scores?period=${period}&limit=${limit}`));
-    if (!res.ok) return null;
-    const data = await res.json();
-    return Array.isArray(data.entries) ? data.entries : null;
-  } catch (e) {
-    return null;
-  }
+  const res = await apiFetch(`/scores?period=${period}&limit=${limit}`);
+  if (!res.ok) return { entries: null, error: res.error };
+  if (!Array.isArray(res.data?.entries)) return { entries: null, error: 'bad_response' };
+  return { entries: res.data.entries, error: null };
 }
 
 /** Submit a finished campaign. Returns {ok, rank:{all,month,week}} or null when offline. */
 export async function submitScore(entry) {
-  try {
-    const res = await withTimeout(fetch(`${API()}/score`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(entry),
-    }));
-    if (!res.ok) return null;
-    return await res.json();
-  } catch (e) {
-    return null;
-  }
+  const res = await apiFetch('/score', { method: 'POST', body: entry });
+  return res.ok ? res.data : null;
 }
 
 /** Remember the player's display name between campaigns. */

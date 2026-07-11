@@ -782,6 +782,7 @@ export default class GameScene extends Phaser.Scene {
           reElection: rep.reElection, regionDeaths: rep.regionDeaths,
           regionDamage: rep.regionDamageRaw, lang: getLang(),
         });
+        if (!subBtn.scene) return; // scene left / modal torn down while awaiting
         if (res && res.ok) {
           subBtn.done = true;
           subBtn.txt.setText(t('score.submitted', res.rank)).setFontSize(11);
