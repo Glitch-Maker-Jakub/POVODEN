@@ -44,6 +44,15 @@ round for round (`tests/helpers/campaign.js`). That reproducibility is the
 safety net the tests check refactors and balance changes against. CI runs the
 same command on every pull request.
 
+The same machinery powers a headless **balance simulator**: `node
+tools/simulate.mjs` replays thousands of seeded campaigns for every
+municipality under named strategies (selfish, cooperative, rescue-first, …) and
+writes a Markdown report with paired-comparison statistics — see
+`docs/balance/baseline-2026-07.md` for the current baseline and
+`docs/balance/playtest-protocol.md` for the moderated-playtest template it
+pairs with. The simulator only reports; balance changes remain design
+decisions.
+
 ## Scoreboard (optional, PostgreSQL)
 
 A small optional **Node.js + PostgreSQL** service under `server/` provides a public
