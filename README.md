@@ -28,6 +28,22 @@ python -m http.server 8124        # then open http://127.0.0.1:8124
 **On your server:** copy the whole `povoden/` folder into any static web root
 (Apache, nginx, GitHub Pages, itch.io, university web space). Done. No build step.
 
+## Tests
+
+The game model — flood physics, economy, cards, diplomacy, whole campaigns —
+runs headless and is covered by characterization tests (Node's built-in test
+runner, zero dependencies, no browser or database needed):
+
+```bash
+npm test
+```
+
+All model randomness flows through an injected RNG; `src/model/rng.js` provides
+a seeded generator, so a campaign replayed with the same seed is identical
+round for round (`tests/helpers/campaign.js`). That reproducibility is the
+safety net the tests check refactors and balance changes against. CI runs the
+same command on every pull request.
+
 ## Scoreboard (optional, PostgreSQL)
 
 A small optional **Node.js + PostgreSQL** service under `server/` provides a public
