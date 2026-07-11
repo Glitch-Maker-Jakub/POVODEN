@@ -13,6 +13,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      # Zero-dependency test suite: the game model runs headless on Node's
-      # built-in test runner — no browser, no database, nothing to install.
+      # The game model itself is zero-dependency; the server API tests import
+      # the express app (with a stubbed database), so install server deps.
+      - run: npm ci --prefix server
       - run: npm test

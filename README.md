@@ -63,8 +63,8 @@ without it — the in-game Scoreboard screen simply reports itself offline.
 cd server
 npm install
 psql -c "CREATE DATABASE povoden"
-psql povoden -f schema.sql
 export DATABASE_URL=postgres://user:pass@localhost:5432/povoden   # Windows: set DATABASE_URL=...
+npm run migrate    # versioned, transactional schema migrations
 npm start          # serves BOTH the game and the API on http://localhost:3000
 ```
 
