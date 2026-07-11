@@ -174,10 +174,17 @@ upstream-commits-first turn order, and balance tuning from real playtests.
 
 ## Assets
 
-Pixel art is generated at build time and committed as static PNG/JPEG under
-`assets/`. To regenerate or restyle, see `tools/README.md`
-(`node tools/gen-assets.mjs` → `python tools/resize-assets.py`). The key lives
-only in the gitignored `tools/.env.local`; it never ships with the game.
+Pixel art is generated at build time: sources live in `assets/src/`, and one
+idempotent pipeline derives everything the game loads (WebP + JPEG twins, 1x
+and `@2x` background variants, pre-keyed transparent town sprites). To
+regenerate or restyle, see `tools/README.md` (`node tools/gen-assets.mjs` →
+`python3 tools/build-assets.py`). The key lives only in the gitignored
+`tools/.env.local`; it never ships with the game.
+
+Images load progressively (`src/ui/assets.js`): the boot screen fetches only
+the menu background, the board art loads when a campaign starts, and the
+newspaper photos arrive in the background during the first preparation phase.
+`npm test` enforces the download and decoded-memory budgets.
 
 ## Debugging
 

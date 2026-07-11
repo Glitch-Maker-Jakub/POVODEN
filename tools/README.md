@@ -28,8 +28,29 @@ node tools/gen-assets.mjs                # generate everything
 node tools/gen-assets.mjs title_bg      # generate one (cheap to iterate)
 ```
 
-Output lands in `assets/` (e.g. `assets/title_bg.png`, `assets/towns/*.png`,
-`assets/tiles/*.png`). Review them, then we load them in the scenes.
+Generated art lands in `assets/src/` — the canonical pipeline **sources**. The
+game never loads these directly; run the build step to produce what ships:
+
+```bash
+python3 -m pip install pillow           # once (WebP support included)
+python3 tools/build-assets.py           # assets/src/ -> assets/
+python3 tools/build-assets.py --table   # ... plus a Markdown size table
+```
+
+`build-assets.py` is the single, idempotent image pipeline (it replaced the old
+`resize-assets.py` + `sharpen-assets.py` pair). Every shipped file is derived
+only from `assets/src/`, so re-running it never re-encodes its own output. It
+produces, per the manifest at the top of the script:
+
+- 1x and `@2x` variants of the two large backgrounds (`title_bg`, `map/valley`),
+  each as WebP + JPEG (the game probes WebP support at boot and falls back);
+- the six newspaper photos as WebP + JPEG;
+- town sprites as palette-quantised PNGs with the flat background pre-keyed to
+  transparency (the runtime key-out in `BootScene` is gone).
+
+Which file the game requests for which display is decided in
+`src/ui/assets.js`; `tests/assetBudget.test.js` fails if the shipped files and
+that manifest drift apart or blow the download/decoded-memory budgets.
 
 ## Model / cost
 

@@ -14,6 +14,7 @@ import {
   canAskFavour, askFavour, oceanaLost, investmentCost, previewFlood,
 } from '../model/gameState.js';
 import { runAllAI } from '../ai/mayorAI.js';
+import { gameImages, newsImages, queueMissing } from '../ui/assets.js';
 import {
   INVESTMENTS, INVESTMENT_ORDER, BALANCE,
   SEVERITY_COLORS, EXPOSURE, PRODUCERS, INVEST_RESOURCE,
@@ -40,6 +41,18 @@ export default class GameScene extends Phaser.Scene {
     this.nodes = {};
   }
 
+  preload() {
+    // Board art loads on campaign start, not at boot. On a restart everything
+    // is already in the texture cache and this queues nothing.
+    if (queueMissing(this, gameImages()) > 0) {
+      fitCamera(this);
+      this.add.rectangle(DESIGN_W / 2, DESIGN_H / 2, DESIGN_W, DESIGN_H, COL.bg);
+      const txt = this.add.text(DESIGN_W / 2, DESIGN_H / 2, 'Loading…',
+        { fontFamily: FONT, fontSize: '20px', color: '#8aa0bd' }).setOrigin(0.5);
+      this.load.on('progress', (p) => txt.setText(`Loading… ${Math.round(p * 100)}%`));
+    }
+  }
+
   create() {
     fitCamera(this);
     const width = DESIGN_W, height = DESIGN_H;
@@ -63,6 +76,9 @@ export default class GameScene extends Phaser.Scene {
       beginCampaign(playerMuni(this.gs).def.name);   // opt-in research: campaign start
       this.showAdvisor(t('advisor.1'));
     }
+    // Newspaper photos arrive in the background while the player prepares; the
+    // summary modal falls back to a plain banner if one is still in flight.
+    if (queueMissing(this, newsImages()) > 0) this.load.start();
   }
 
   // Hover tooltips that explain the HUD symbols a non-gamer won't recognise.
@@ -305,8 +321,8 @@ export default class GameScene extends Phaser.Scene {
 
     const ring = this.add.circle(0, 0, 42, 0x000000, 0).setStrokeStyle(4, COL.accent).setVisible(false);
     const idRing = this.add.circle(0, 0, 38, 0x0e1726, 0.45).setStrokeStyle(3, m.def.color);
-    const key = this.textures.exists(`town_${m.id}_t`) ? `town_${m.id}_t` : `town_${m.id}`;
-    const sprite = this.add.image(0, -2, key).setDisplaySize(74, 74);
+    // Town sprites ship pre-keyed (transparent background) — see tools/build-assets.py.
+    const sprite = this.add.image(0, -2, `town_${m.id}`).setDisplaySize(74, 74);
     const floodTint = this.add.circle(0, 0, 38, 0x16264f, 0).setVisible(false);
     // Small numbered identity badge (top-left) so the art reads clearly.
     const badge = this.add.circle(-26, -26, 12, m.def.color).setStrokeStyle(2, 0x0a1422);
