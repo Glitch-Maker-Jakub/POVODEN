@@ -12,6 +12,7 @@ import {
   acceptProposal, declineProposal, relationshipLabel,
   forecastBand, canSharpenForecast, sharpenForecast,
   canAskFavour, askFavour, oceanaLost, investmentCost, previewFlood,
+  boatsWereSent,
 } from '../model/gameState.js';
 import { runAllAI } from '../ai/mayorAI.js';
 import { gameImages, newsImages, queueMissing } from '../ui/assets.js';
@@ -635,7 +636,7 @@ export default class GameScene extends Phaser.Scene {
 
     // Realistic newspaper photo, chosen by the season's outcome.
     let imgKey = ({ calm: 'news_calm', mild: 'news_minor', damage: 'news_ruin', disaster: 'news_rescue' })[art.tone] || 'news_calm';
-    if ((gs.notifications || []).some((n) => n.includes('sent')) && (art.tone === 'calm' || art.tone === 'mild')) imgKey = 'news_cooperation';
+    if (boatsWereSent(gs.notifications) && (art.tone === 'calm' || art.tone === 'mild')) imgKey = 'news_cooperation';
     if (this.textures.exists(imgKey)) {
       add(this.add.image(cx, ty, imgKey).setDisplaySize(360, 202).setOrigin(0.5, 0));
       add(this.add.rectangle(cx, ty + 202 - 9, 360, 18, 0x1a1208, 0.85));

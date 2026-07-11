@@ -11,8 +11,8 @@
 // region's relief valve), which is itself a cooperative posture.
 // =============================================================================
 
-import { purchase, canAfford, muniById, notify } from '../model/gameState.js';
-import { INVESTMENTS, MAYORS } from '../data/gameData.js';
+import { purchase, canAfford, muniById, notify, EVENT } from '../model/gameState.js';
+import { INVESTMENTS } from '../data/gameData.js';
 
 // Per-municipality disposition. 0 = pure self-interest, 1 = strongly cooperative.
 const DISPOSITION = {
@@ -58,7 +58,7 @@ export function decideAI(gs, muniId) {
       if (!purchase(gs, muniId, player.id, 'boat')) break;
       sent++;
     }
-    if (sent > 0) notify(gs, `${MAYORS[muniId].name} (${me.def.name}) sent ${sent} boat${sent > 1 ? 's' : ''} to your town.`);
+    if (sent > 0) notify(gs, { type: EVENT.BOATS_SENT, townId: muniId, boats: sent });
   }
 
   let guard = 0; // safety against infinite loops

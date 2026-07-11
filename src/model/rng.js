@@ -20,6 +20,15 @@ export function hashSeed(seed) {
   return h >>> 0;
 }
 
+/** In-place Fisher–Yates shuffle driven by an injected rng. Returns the array. */
+export function shuffle(arr, rng) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 /**
  * Deterministic RNG with the same contract as Math.random: () => [0, 1).
  * Same seed -> same sequence, on every platform (integer math only).

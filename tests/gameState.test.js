@@ -11,7 +11,7 @@ import {
   sharpenForecast, canSharpenForecast, forecastBand, oceanaLost,
   holdMeeting, meetingAffordable, isRevealed,
   acceptProposal, declineProposal, askFavour, canAskFavour,
-  resolveRound, advanceRound, regionalScore, adjustRelationship,
+  resolveRound, advanceRound, regionalScore, adjustRelationship, initPending,
 } from '../src/model/gameState.js';
 import { createSeededRng } from '../src/model/rng.js';
 import { MUNICIPALITIES, INVESTMENTS, BALANCE, RELATIONSHIP, SEVERITY } from '../src/data/gameData.js';
@@ -256,16 +256,25 @@ test('advancing a round resets the per-round state', () => {
   const gs = newGame();
   purchase(gs, gs.playerMuniId, gs.playerMuniId, 'reserve');
   holdMeeting(gs);
+  // Dirty every per-round pending slot a card or event could have written.
   gs.pending.tempLevee.delta = 1;
+  gs.pending.sevMod.delta = 2;
+  gs.pending.boatMult.millington = 2;
+  gs.pending.atRiskMult.millington = 0.5;
+  gs.pending.boatPrice.millington = 7;
+  gs.pending.insured.millington = true;
+  gs.pending.pactTowns = ['millington', 'greenhaven', 'traders'];
   resolveRound(gs);
   advanceRound(gs);
   assert.equal(gs.round, 2);
   assert.equal(gs.phase, PHASE.PREP);
-  assert.deepEqual(gs.pending.tempLevee, {}, 'pending effects cleared');
+  assert.deepEqual(gs.pending, initPending(), 'every pending effect cleared');
   assert.equal(gs.meetingHeld, false);
   assert.deepEqual(gs.notifications, []);
   assert.deepEqual(gs.favoursAsked, {});
   assert.deepEqual(gs.scarceBought, {});
+  assert.deepEqual(gs.playerContribThisRound, {});
+  assert.deepEqual(gs.scheduledRewards, []);
   assert.equal(playerMuni(gs).banked, 0, 'bank paid out into the new budget');
 });
 
