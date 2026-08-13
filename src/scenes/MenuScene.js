@@ -3,7 +3,7 @@ import { MUNICIPALITIES } from '../data/gameData.js';
 import { sfx } from '../ui/sfx.js';
 import { t, toggleLang } from '../i18n.js';
 import { consentState, setConsent, participantId } from '../net/telemetry.js';
-import { playVideo, playVideoOnce } from '../ui/video.js';
+import { playVideo } from '../ui/video.js';
 
 const Phaser = window.Phaser;
 
@@ -66,19 +66,17 @@ export default class MenuScene extends Phaser.Scene {
 
     makeButton(this, width / 2 - 150, height - 90, 280, 64, t('menu.start'), () => {
       sfx.resume(); sfx.click();
-      // First-ever campaign: research consent once, then Fojtík's interview
-      // (skippable, plays once), then the game.
-      const begin = () => playVideoOnce('intro', () =>
-        this.scene.start('Game', { playerMuniId: this.chosen }));
+      // First-ever campaign: research consent once, then straight to the game.
+      const begin = () => this.scene.start('Game', { playerMuniId: this.chosen });
       if (consentState() === null) this.showConsent(begin);
       else begin();
     }, { fill: 0x1f7a3d, fillHover: 0x2a9b4f, fontSize: 20 });
 
-    // Rewatch the interview anytime.
-    makeButton(this, width - 110, 96, 180, 40, t('menu.interview'), () => {
+    // The intro interview plays only from this button — never automatically.
+    makeButton(this, width - 130, 96, 220, 50, t('menu.interview'), () => {
       sfx.resume(); sfx.click();
       playVideo('intro');
-    }, { fontSize: 12 });
+    }, { fontSize: 14 });
 
     makeButton(this, width / 2 + 160, height - 90, 200, 64, t('menu.howto'), () => {
       sfx.resume(); sfx.click();
