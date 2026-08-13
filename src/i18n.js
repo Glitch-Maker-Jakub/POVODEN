@@ -151,6 +151,10 @@ const S = {
     'research.off': '🔬 Research: OFF',
     'research.id': 'research ID: {id}',
 
+    // --- Story videos -------------------------------------------------------
+    'menu.interview': '▶ THE INTERVIEW',
+    'video.skip': 'SKIP ▸',
+
     // --- HUD / top bar ----------------------------------------------------
     'hud.round': 'ROUND {n} / {total}',
     'hud.prep': '● PREPARATION',
@@ -537,6 +541,10 @@ const S = {
     'research.on': '🔬 Výzkum: ZAPNUTO',
     'research.off': '🔬 Výzkum: VYPNUTO',
     'research.id': 'výzkumné ID: {id}',
+
+    // --- Příběhová videa -----------------------------------------------------
+    'menu.interview': '▶ ROZHOVOR',
+    'video.skip': 'PŘESKOČIT ▸',
 
     // --- HUD --------------------------------------------------------------
     'hud.round': 'KOLO {n} / {total}',

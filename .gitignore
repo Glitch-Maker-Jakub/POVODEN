@@ -20,3 +20,6 @@ tmp/
 # Unpublished manuscript drafts — do not publish to the public repo
 # (remove this line deliberately if/when the article is published)
 FINAL_Article/
+
+# Video pipeline working files (stills/tts/segments) — only final MP4s ship
+tools/video/build/

@@ -4,6 +4,7 @@ import { writeArticle, postMortem, finalReport, roundBriefing } from '../ui/news
 import { t, getLang } from '../i18n.js';
 import { submitScore, promptName } from '../net/scoreboard.js';
 import { beginCampaign, logEvent, flush as flushTelemetry } from '../net/telemetry.js';
+import { playVideo, videoSeen } from '../ui/video.js';
 import {
   createGameState, PHASE, muniById, playerMuni,
   purchase, canInvest, resolveRound, advanceRound, regionalScore,
@@ -578,6 +579,15 @@ export default class GameScene extends Phaser.Scene {
     const last = gs.log[gs.log.length - 1];
     const isFinal = gs.round >= BALANCE.totalRounds;
 
+    // First real destruction: Fojtík reframes the loss before the paper opens.
+    // (Once per browser; _lossVideoTried guards the file-absent fallback loop.)
+    const firstLoss = (last.totalDeaths > 0 || last.totalDamage >= 100);
+    if (firstLoss && !videoSeen('loss') && !this._lossVideoTried) {
+      this._lossVideoTried = true;
+      playVideo('loss', () => this.showSummary());
+      return;
+    }
+
     // Opt-in research: the round's outcome snapshot (decisions were logged live).
     {
       const ownRow = (gs.lastResults || []).find((r) => r.id === gs.playerMuniId) || { damage: 0, deaths: 0 };
@@ -813,6 +823,9 @@ export default class GameScene extends Phaser.Scene {
     if (this.gs.oceanaJustLost) {
       this.gs.oceanaJustLost = false;
       this.showAdvisor(t('advisor.oceanaLost'));
+    } else if (this.gs.round === 3 && !videoSeen('calm')) {
+      // The calm is over — Fojtík's dockside warning (video), advisor text as fallback.
+      playVideo('calm', (ok) => { if (!ok) this.showAdvisor(t('advisor.3')); });
     } else if (ADVISOR_ROUNDS.includes(this.gs.round)) {
       this.showAdvisor(t(`advisor.${this.gs.round}`));
     }
