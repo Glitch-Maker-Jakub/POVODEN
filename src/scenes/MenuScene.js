@@ -73,10 +73,13 @@ export default class MenuScene extends Phaser.Scene {
     }, { fill: 0x1f7a3d, fillHover: 0x2a9b4f, fontSize: 20 });
 
     // The intro interview plays only from this button — never automatically.
-    makeButton(this, width - 130, 96, 220, 50, t('menu.interview'), () => {
+    // Gold and right above HOW TO PLAY, so first-timers see it as step one.
+    const interviewBtn = makeButton(this, width / 2 + 160, height - 152, 200, 52, t('menu.interview'), () => {
       sfx.resume(); sfx.click();
       playVideo('intro');
-    }, { fontSize: 14 });
+    }, { fill: 0xc9a24b, fillHover: 0xe0bc63, fontSize: 15 });
+    interviewBtn.bg.setStrokeStyle(2, 0xf0d488);
+    interviewBtn.txt.setColor('#1a1206');
 
     makeButton(this, width / 2 + 160, height - 90, 200, 64, t('menu.howto'), () => {
       sfx.resume(); sfx.click();

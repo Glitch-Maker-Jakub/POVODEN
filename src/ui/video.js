@@ -39,7 +39,27 @@ export function playVideo(id, onDone) {
     'position:absolute;top:18px;right:22px;padding:9px 20px;font-family:monospace;' +
     'font-size:13px;cursor:pointer;color:#e6eef7;background:rgba(17,26,44,.85);' +
     'border:1px solid #c9a24b;';
-  wrap.append(video, skip);
+
+  // Playback-speed control (the interview is deliberately unhurried — let the
+  // player decide). Cycles through rates; the choice persists across videos.
+  const RATES = [1, 1.25, 1.5, 2];
+  let rate = 1;
+  try { rate = parseFloat(localStorage.getItem('povoden_video_rate')) || 1; } catch (e) { /* ignore */ }
+  if (!RATES.includes(rate)) rate = 1;
+  const speed = document.createElement('button');
+  speed.style.cssText =
+    'position:absolute;top:18px;right:132px;padding:9px 16px;font-family:monospace;' +
+    'font-size:13px;cursor:pointer;color:#e6eef7;background:rgba(17,26,44,.85);' +
+    'border:1px solid #3a5b8a;';
+  const showRate = () => { speed.textContent = `${rate}×`; video.playbackRate = rate; };
+  speed.onclick = () => {
+    rate = RATES[(RATES.indexOf(rate) + 1) % RATES.length];
+    try { localStorage.setItem('povoden_video_rate', String(rate)); } catch (e) { /* ignore */ }
+    showRate();
+  };
+  showRate();
+
+  wrap.append(video, speed, skip);
   document.body.append(wrap);
 
   let finished = false;

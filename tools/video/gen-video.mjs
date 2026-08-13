@@ -96,13 +96,20 @@ function wavReadPcm(path) {
 const silence = (sec) => Buffer.alloc(Math.round(sec * 24000) * 2);
 
 // --- stills ------------------------------------------------------------------
+// Every shot with a `prompt` defines a still; later shots may reference the
+// same name without a prompt (reuse). Game captures (`cap`) come from
+// build/gamecaps/ and are produced live via cap-server.mjs, never generated.
 function uniqueStills() {
   const seen = new Map();
-  for (const v of VIDEOS) for (const sc of v.scenes) {
-    if (sc.still.reuse) continue;
-    if (!seen.has(sc.still.file)) seen.set(sc.still.file, sc.still.prompt);
+  for (const v of VIDEOS) for (const sc of v.scenes) for (const sh of sc.shots) {
+    if (sh.still && sh.prompt && !seen.has(sh.still)) seen.set(sh.still, sh.prompt);
   }
   return seen;
+}
+
+function shotFile(sh) {
+  if (sh.cap) return join(BUILD, 'gamecaps', `${sh.cap}.png`);
+  return join(BUILD, 'stills', `${sh.still}.png`);
 }
 
 async function genImages() {
@@ -179,14 +186,24 @@ function sceneAudio(v, sc, lang, outPath) {
   return pcm.length / 2 / 24000; // seconds
 }
 
-function kenBurns(idx, mode, frames) {
-  // Alternate slow push-in / pull-out; 'close' starts tighter (the thesis return).
-  const zin = idx % 2 === 0;
-  let z;
-  if (mode === 'close') z = `1.15+0.10*on/${frames}`;
-  else if (zin) z = `1.02+0.10*on/${frames}`;
-  else z = `1.12-0.10*on/${frames}`;
-  return `scale=2752:1548,zoompan=z='${z}':x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':d=${frames}:s=${W}x${H}:fps=${FPS}`;
+function kenBurns(idx, sh, frames) {
+  // Per-shot camera move. `focus: [fx,fy]` pushes toward that fractional point
+  // (map-town shots); zoom 'close' starts tight; 'in'/'out' force direction;
+  // otherwise shots alternate push-in / pull-out. Nearest-neighbour upscale
+  // keeps the pixel art (and game-UI text) crisp under the move.
+  const mode = sh.zoom;
+  let z, x = `(iw-iw/zoom)/2`, y = `(ih-ih/zoom)/2`;
+  if (sh.focus) {
+    const [fx, fy] = sh.focus;
+    z = `1.06+0.55*on/${frames}`;
+    x = `max(0,min(iw-iw/zoom,iw*${fx}-(iw/zoom)/2))`;
+    y = `max(0,min(ih-ih/zoom,ih*${fy}-(ih/zoom)/2))`;
+  } else if (mode === 'close') z = `1.18+0.10*on/${frames}`;
+  else if (mode === 'in') z = `1.02+0.14*on/${frames}`;
+  else if (mode === 'out') z = `1.16-0.14*on/${frames}`;
+  else if (idx % 2 === 0) z = `1.02+0.12*on/${frames}`;
+  else z = `1.14-0.12*on/${frames}`;
+  return `scale=2752:1548:flags=neighbor,zoompan=z='${z}':x='${x}':y='${y}':d=${frames}:s=${W}x${H}:fps=${FPS}`;
 }
 
 function assemble(lang) {
@@ -200,22 +217,36 @@ function assemble(lang) {
       const seg = join(segDir, `${v.id}_${idx}.mp4`);
       const aud = join(segDir, `${v.id}_${idx}.wav`);
       const dur = sceneAudio(v, sc, lang, aud);
-      const frames = Math.round(dur * FPS);
-      const still = join(BUILD, 'stills', `${sc.still.file}.png`);
-      let vf = kenBurns(idx, sc.still.zoom, frames);
+      const total = Math.round(dur * FPS);
+
+      // Caption (burned into every sub-clip of the scene, so it persists).
+      let capDraw = '';
       if (sc.caption) {
         const capFile = join(segDir, `${v.id}_${idx}.txt`);
         writeFileSync(capFile, sc.caption[lang], 'utf8');
         const cap = capFile.replace(/\\/g, '/').replace(':', '\\:');
-        vf += `,drawtext=fontfile='${FONT}':textfile='${cap}':fontsize=26:fontcolor=white:borderw=2:bordercolor=black@0.8:x=(w-text_w)/2:y=h-58`;
+        capDraw = `,drawtext=fontfile='${FONT}':textfile='${cap}':fontsize=26:fontcolor=white:borderw=2:bordercolor=black@0.8:x=(w-text_w)/2:y=h-58`;
       }
-      ffmpeg(['-i', still, '-i', aud,
-        '-filter_complex', `[0:v]${vf}[v]`,
-        '-map', '[v]', '-map', '1:a',
-        '-c:v', 'libx264', '-preset', 'medium', '-crf', '26', '-pix_fmt', 'yuv420p',
-        '-c:a', 'aac', '-b:a', '96k', '-shortest', seg]);
+
+      // The scene's audio duration is split evenly across its shots; each shot
+      // becomes a silent sub-clip, concatenated, then muxed with the audio.
+      const base = Math.floor(total / sc.shots.length);
+      const subs = [];
+      sc.shots.forEach((sh, si) => {
+        const frames = si === sc.shots.length - 1 ? total - base * si : base;
+        const sub = join(segDir, `${v.id}_${idx}_${si}.mp4`);
+        const vf = kenBurns(si, sh, frames) + capDraw;
+        ffmpeg(['-i', shotFile(sh),
+          '-filter_complex', `[0:v]${vf}[v]`, '-map', '[v]', '-an',
+          '-c:v', 'libx264', '-preset', 'medium', '-crf', '26', '-pix_fmt', 'yuv420p', sub]);
+        subs.push(sub);
+      });
+      const subList = join(segDir, `${v.id}_${idx}_subs.txt`);
+      writeFileSync(subList, subs.map((s) => `file '${s.replace(/\\/g, '/').replace(/'/g, "'\\''")}'`).join('\n'));
+      ffmpeg(['-f', 'concat', '-safe', '0', '-i', subList, '-i', aud,
+        '-c:v', 'copy', '-c:a', 'aac', '-b:a', '96k', '-shortest', seg]);
       segs.push(seg);
-      console.log(`seg ${lang} ${v.id} ${idx + 1}/${v.scenes.length} (${dur.toFixed(1)}s)`);
+      console.log(`seg ${lang} ${v.id} ${idx + 1}/${v.scenes.length} (${dur.toFixed(1)}s, ${sc.shots.length} shots)`);
     });
     // Concat segments (same codecs → stream copy).
     const list = join(segDir, `${v.id}_list.txt`);

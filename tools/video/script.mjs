@@ -3,9 +3,23 @@
 // -----------------------------------------------------------------------------
 // Human-readable references: docs/intro_video_script_en.md, docs/checkin_videos_en.md
 // This file is the SINGLE SOURCE the generator consumes: every scene carries its
-// still (image prompt), captions (en/cs) and voiced lines (en/cs per speaker).
-// Czech is an ADAPTATION, not a literal translation — Fojtík should sound like
-// a Czech riverman. (Czech native speaker: proofread the `cs` fields!)
+// SHOT LIST (pixel-art stills to generate + real game captures), captions (en/cs)
+// and voiced lines (en/cs per speaker). Czech is an ADAPTATION, not a literal
+// translation — Fojtík should sound like a Czech riverman. (Czech native
+// speaker: proofread the `cs` fields!)
+//
+// SHOTS: each scene's `shots` array cuts the scene's audio duration into equal
+// parts, one visual per part, each with its own Ken Burns move:
+//   { still: 'px_name', prompt: '…' }        — generated pixel-art still
+//   { still: 'px_name' }                     — reuse of a still defined earlier
+//   { cap: 'cap_name' }                      — game screenshot (build/gamecaps/,
+//                                              captured live via cap-server.mjs)
+//   focus: [fx, fy]                          — Ken Burns pushes toward this
+//                                              fractional point (map town shots)
+//   zoom: 'close' | 'in' | 'out'             — Ken Burns override
+//
+// IMPORTANT: scene ids and `lines` are the TTS cache keys — do not rename or
+// reorder them unless you intend to re-generate the voiceover.
 // =============================================================================
 
 export const VOICES = {
@@ -26,25 +40,34 @@ export const VOICES = {
   },
 };
 
-// Shared look for all generated stills (kept in every prompt for consistency).
-const LOOK =
-  'Painterly documentary illustration, muted Central-European palette, soft natural light, ' +
-  'cinematic 16:9 composition, quiet and dignified mood. No text, no lettering, no watermark.';
-const MEMORY = 'Desaturated, faded, archival feel, cooler tones, like a remembered scene. ';
-const PRESENT = 'Warm afternoon light, present-day, gentle color. ';
+// Shared look for all generated stills — matches the game's own pixel art.
+const PX =
+  'Highly detailed 16:9 pixel art, crisp pixels, in the style of a modern indie serious game, ' +
+  'Central-European river valley, half-timbered houses and red roofs where towns appear, ' +
+  'cinematic composition, rich palette of deep blues and warm lamplight. ' +
+  'No text, no lettering, no watermark, no UI elements.';
+const MEMORY = 'Desaturated, cooler tones, faded archival remembered-scene mood. ';
+const PRESENT = 'Warm evening light, present-day, gentle color. ';
+
+// The in-game map's town positions (fractions of the 1280x720 frame), measured
+// live — Ken Burns pushes toward these when a town is discussed.
+const TOWN = {
+  delta: [0.086, 0.229], millington: [0.172, 0.365], greenhaven: [0.258, 0.451],
+  traders: [0.344, 0.486], bayview: [0.43, 0.521], oceana: [0.516, 0.607],
+  finalpoint: [0.602, 0.743],
+};
 
 // -----------------------------------------------------------------------------
-// VIDEO 1 — "What the River Remembers" (~5 min intro)
+// VIDEO 1 — "What the River Remembers" (intro)
 // -----------------------------------------------------------------------------
 export const INTRO = {
   id: 'intro',
   scenes: [
     {
       id: 's00_masthead',
-      still: {
-        file: 'still_00_masthead',
-        prompt: 'An old physical newspaper lying on dark wood, slightly water-stained, elegant serif masthead area left BLANK (no letters), moody close-up, lamplight. ' + LOOK,
-      },
+      shots: [
+        { still: 'px_masthead', prompt: 'An old physical newspaper lying on dark wood in a pool of lamplight, slightly water-stained, masthead area left blank, moody close-up. ' + PX },
+      ],
       caption: { en: 'THE ELBE HERALD', cs: 'LABSKÝ KURÝR' },
       lines: [
         { sp: 'reporter', en: 'Every mayor on this river has a plan. Old Fojtík has forty years of watching those plans meet the water.', cs: 'Každý starosta na téhle řece má plán. Starý Fojtík se čtyřicet let dívá, jak se ty plány potkávají s vodou.' },
@@ -52,10 +75,14 @@ export const INTRO = {
     },
     {
       id: 's01_kitchen',
-      still: {
-        file: 'still_01_kitchen',
-        prompt: PRESENT + 'A small Czech kitchen table by a window, a wide river visible outside, two ceramic mugs, an elderly weathered man with white stubble sits across from a young woman journalist holding a notebook. ' + LOOK,
-      },
+      shots: [
+        { still: 'px_kitchen', prompt: PRESENT + 'A small Czech kitchen interior, a table by a window with a wide river visible outside, two ceramic mugs, an elderly weathered man with white stubble sitting across from a young woman journalist holding a notebook. ' + PX },
+        { still: 'px_fojtik', prompt: PRESENT + 'Close portrait of an elderly weathered Czech riverman, white stubble, deep wrinkles, calm grey eyes, wool sweater, kitchen window light. ' + PX },
+        { still: 'px_coin', prompt: 'A single euro coin standing upright on a wooden table, one half of it gleaming, the other half darkened by a creeping waterline reflection, symbolic, dramatic macro. ' + PX },
+        { still: 'px_reporter', prompt: PRESENT + 'A young woman journalist at a kitchen table, pen over an open notebook, listening intently, respectful posture, soft window light. ' + PX },
+        { still: 'px_window_river', prompt: PRESENT + 'View through an old kitchen window: a wide calm river below, a small ferry dock, distant red-roofed towns along the banks. ' + PX },
+        { still: 'px_kitchen', zoom: 'close' },
+      ],
       caption: null,
       lines: [
         { sp: 'reporter', en: 'Mr. Fojtík — you pulled people out of the water in two thousand two. Again in twenty thirteen. If a new mayor sat down at this table today, what would you tell them?', cs: 'Pane Fojtíku — v roce dva tisíce dva jste tahal lidi z vody. A znovu ve třináctém. Kdyby si dnes k tomuhle stolu sedl nový starosta, co byste mu řekl?' },
@@ -68,10 +95,11 @@ export const INTRO = {
     },
     {
       id: 's02_delta',
-      still: {
-        file: 'still_02_delta',
-        prompt: MEMORY + 'A lone wooden watchtower with a warning bell on a hill above a narrow mountain stream, dawn light, wide empty landscape, headwaters of a river. ' + LOOK,
-      },
+      shots: [
+        { still: 'px_watchtower', prompt: MEMORY + 'A lone wooden watchtower with a warning bell on a hill above a narrow mountain stream at dawn, wide empty highlands, headwaters of a river. ' + PX },
+        { cap: 'cap_map', focus: TOWN.delta },
+        { still: 'px_levee_upstream', prompt: MEMORY + 'A concrete levee wall on a mountain river, white water deflected and rushing onward downstream toward distant unsuspecting villages, ominous. ' + PX },
+      ],
       caption: { en: 'Your first town’s choices ripple down the whole river.', cs: 'Rozhodnutí prvního města se nesou po celé řece.' },
       lines: [
         { sp: 'fojtik', en: 'Up at Delta, at the headwaters — that is where it starts. A mayor up there thinks, the flood is downstream, not my problem. Wrong. Whatever you build up there — a levee, a warning bell — it changes what everyone below you gets. Delta does not flood first. Delta decides who floods worst.', cs: 'Nahoře v Deltě, u pramenů — tam to začíná. Starosta si tam říká: povodeň je po proudu, to není moje starost. Omyl. Cokoli tam nahoře postavíš — hráz, zvon na poplach — mění to, co dostanou všichni pod tebou. Delta se nezaplaví první. Delta rozhoduje, kdo se zaplaví nejhůř.' },
@@ -79,10 +107,13 @@ export const INTRO = {
     },
     {
       id: 's03_forecast',
-      still: {
-        file: 'still_03_study',
-        prompt: PRESENT + 'A cluttered riverman’s study: hand-drawn river charts pinned to the wall, an old brass barometer, a rain gauge visible through the window, open ledgers on a desk, lamplight. ' + LOOK,
-      },
+      shots: [
+        { still: 'px_study', prompt: PRESENT + 'A cluttered riverman’s study: hand-drawn river charts pinned to the wall, an old brass barometer, a rain gauge outside the window, open ledgers in lamplight. ' + PX },
+        { cap: 'cap_sharpen', focus: [0.55, 0.04] },
+        { cap: 'cap_meeting' },
+        { cap: 'cap_table' },
+        { still: 'px_mayors_table', prompt: PRESENT + 'Seven mayors around a long wooden table in a dim town-hall room at night, a large river map spread between them, lamplight, serious faces. ' + PX },
+      ],
       caption: { en: 'Sharpen the forecast; call a meeting to see the planning table.', cs: 'Zpřesněte předpověď; svolejte setkání a uvidíte tabulku plánování.' },
       lines: [
         { sp: 'fojtik', en: 'You will get a forecast every season — a range, not a promise. Pay to sharpen it, and that range narrows toward the truth. Pay nothing, and you prepare blind, hoping the middle number holds.', cs: 'Každou sezónu dostaneš předpověď — rozsah, ne slib. Zaplať za zpřesnění, a rozsah se stáhne k pravdě. Nezaplatíš nic, a připravuješ se naslepo. Doufáš, že vyjde prostředek.' },
@@ -94,10 +125,13 @@ export const INTRO = {
     },
     {
       id: 's04_millington',
-      still: {
-        file: 'still_04_millington',
-        prompt: MEMORY + 'A crowded row of Central-European red-roofed houses and one apartment block, laundry lines between windows, children’s bicycles left in a courtyard, lived-in and dense. ' + LOOK,
-      },
+      shots: [
+        { still: 'px_millington', prompt: MEMORY + 'A dense Central-European town: crowded rows of red-roofed houses and one concrete apartment block, laundry lines between windows, children’s bicycles in a courtyard, lived-in. ' + PX },
+        { cap: 'cap_map', focus: TOWN.millington },
+        { still: 'px_wall_town', prompt: MEMORY + 'A town completely enclosed by a towering concrete flood wall, dry streets inside, no boats anywhere, the river dark and high on the other side of the wall. ' + PX },
+        { still: 'px_panic', prompt: MEMORY + 'A crowd of frightened townspeople on a dry cobbled square at night, alarm light on their faces, everyone looking a different direction, dread without water. ' + PX },
+        { still: 'px_festival', prompt: PRESENT + 'A riverside town festival at dusk: paper lanterns strung between houses, dancing crowd, food stalls, the river calm and low behind, joyful and warm. ' + PX },
+      ],
       caption: { en: 'Celebrations lift approval — and raise risk if the flood comes that season.', cs: 'Slavnosti zvedají podporu — a riziko, přijde-li tou sezónou povodeň.' },
       lines: [
         { sp: 'fojtik', en: 'Millington is packed tight — more people than anywhere else on the river, and more of the region’s money besides. I watched a mayor wall the town so high he forgot to buy a single boat. The water never got in. Did not matter. When the panic got in, it cost him just the same.', cs: 'Millington je namačkaný — víc lidí než kdekoli jinde na řece, a k tomu většina peněz celého kraje. Viděl jsem starostu, který město obehnal tak vysokou hrází, že zapomněl koupit jedinou loďku. Voda se dovnitř nedostala. Nebylo to nic platné. Když se dovnitř dostala panika, stálo ho to stejně.' },
@@ -109,10 +143,11 @@ export const INTRO = {
     },
     {
       id: 's05_greenhaven',
-      still: {
-        file: 'still_05_greenhaven',
-        prompt: MEMORY + 'Open green floodplain fields with a modest farmhouse and distant barn, water pooling naturally at the low edge of a field, soft agricultural land by a river. ' + LOOK,
-      },
+      shots: [
+        { still: 'px_greenhaven', prompt: MEMORY + 'Open green floodplain fields with a modest farmhouse and a distant barn, water pooling naturally at the low edge of a field, soft agricultural river land. ' + PX },
+        { cap: 'cap_map', focus: TOWN.greenhaven },
+        { still: 'px_flooded_field', prompt: PRESENT + 'A wide farm field calmly holding shallow floodwater like a mirror at dusk, herons standing in it, while a small town on higher ground in the distance stays dry and lit. ' + PX },
+      ],
       caption: { en: 'Some land protects the region best by staying un-leveed.', cs: 'Některá půda chrání kraj nejlíp bez hráze.' },
       lines: [
         { sp: 'fojtik', en: 'Greenhaven is a field that knows how to drown quietly so a town downstream does not have to. Every young mayor wants to wall it like the others. Do not. Leave that ground open and it swallows water that would otherwise go looking for someone’s kitchen.', cs: 'Greenhaven je pole, které se umí potichu utopit, aby se nemuselo topit město po proudu. Každý mladý starosta ho chce obehnat hrází jako ostatní města. Nedělej to. Nech tu zem otevřenou a spolkne vodu, která by si jinak našla něčí kuchyň.' },
@@ -122,10 +157,12 @@ export const INTRO = {
     },
     {
       id: 's06_traders',
-      still: {
-        file: 'still_06_traders',
-        prompt: MEMORY + 'A busy river market town: warehouses, loading docks, stacked wooden crates, a stone bridge, barges moored, commerce and motion. ' + LOOK,
-      },
+      shots: [
+        { still: 'px_traders', prompt: MEMORY + 'A busy river market town: warehouses, loading docks, stacked wooden crates, a stone bridge, moored barges, commerce and motion. ' + PX },
+        { cap: 'cap_map', focus: TOWN.traders },
+        { still: 'px_quarry', prompt: MEMORY + 'A stone quarry and concrete works above a river town, conveyor belts, cement silos, stacked concrete levee segments in a yard, industrial dusk. ' + PX },
+        { still: 'px_empty_shelves', prompt: MEMORY + 'A hardware warehouse interior with nearly empty shelves, one last sack of cement, a worried foreman with a clipboard, scarcity. ' + PX },
+      ],
       caption: { en: 'Producer towns supply what everyone needs — lose one, the whole region pays more.', cs: 'Výrobní města zásobují všechny — ztratíš-li jedno, platí celý kraj víc.' },
       lines: [
         { sp: 'fojtik', en: 'Trader’s Reach is the region’s wallet — and its quarry. Every bag of concrete for every levee on this river starts there. Let it flood, and it is not just their loss. Every town’s budget shrinks the next season, and levees everywhere get scarce and dear.', cs: 'Trader’s Reach je peněženka kraje — a jeho lom. Každý pytel betonu na každou hráz na téhle řece začíná tam. Nech ho zaplavit, a není to jen jejich škoda. Příští sezónu se ztenčí rozpočet všech měst a hráze všude zdraží a dojdou.' },
@@ -135,10 +172,12 @@ export const INTRO = {
     },
     {
       id: 's07_bayview',
-      still: {
-        file: 'still_07_bayview',
-        prompt: MEMORY + 'An industrial riverside district: chemical storage tanks, smokestacks against a grey sky, a faint iridescent sheen on the river surface, uneasy stillness. ' + LOOK,
-      },
+      shots: [
+        { still: 'px_bayview', prompt: MEMORY + 'An industrial riverside district at night: chemical storage tanks, smokestacks against a grey sky, a faint iridescent sheen on the river surface, uneasy stillness. ' + PX },
+        { cap: 'cap_map', focus: TOWN.bayview },
+        { still: 'px_toxic_river', prompt: MEMORY + 'A river carrying an iridescent chemical slick downstream past helpless red-roofed villages, oily rainbow colors on dark water, environmental dread. ' + PX },
+        { still: 'px_boatworks', prompt: PRESENT + 'A boat factory hall: rows of small rescue boats in production, plastic hulls, sparks from a welder, workers, warm industrial light. ' + PX },
+      ],
       caption: { en: 'A flooded producer makes its resource scarce for everyone, next season.', cs: 'Zaplavené výrobní město příští sezónu zdraží svou surovinu všem.' },
       lines: [
         { sp: 'fojtik', en: 'Bayview keeps this region’s boats built — the plastic, the hulls. But it sits on chemicals it cannot always hold. I have seen a flood there poison the water for every town downstream, on top of the water itself. Ignore Bayview and two disasters arrive as one.', cs: 'Bayview staví čluny pro celý kraj — plasty, trupy. Jenže sedí na chemii, kterou vždycky neudrží. Viděl jsem, jak povodeň odtamtud otrávila vodu všem městům po proudu — navrch k té vodě samotné. Ignoruj Bayview, a přijdou dvě neštěstí v jednom.' },
@@ -148,10 +187,12 @@ export const INTRO = {
     },
     {
       id: 's08_cards',
-      still: {
-        file: 'still_08_cards',
-        prompt: PRESENT + 'A weathered leather satchel and hand-labeled cards spread by lantern light on a rough wooden table, ink drawings faintly visible on the cards like old tarot, warm shadows. ' + LOOK,
-      },
+      shots: [
+        { still: 'px_cards', prompt: PRESENT + 'A weathered leather satchel and hand-labeled playing cards spread by lantern light on a rough wooden table, faint ink drawings on the cards like old tarot, warm shadows. ' + PX },
+        { cap: 'cap_card' },
+        { still: 'px_capital', prompt: PRESENT + 'Two hands exchanging a glowing brass token over a wooden table, other identical tokens stacked beside a river map, influence made physical, lamplight. ' + PX },
+        { still: 'px_locked_door', prompt: 'A heavy locked oak door at the end of a dark corridor, faint cold blue light seeping underneath, a brass keyhole gleaming, mystery. ' + PX },
+      ],
       caption: { en: 'Playing a card costs political capital — the same coin that helps a neighbor.', cs: 'Zahrát kartu stojí politický kapitál — touž mincí se pomáhá sousedům.' },
       lines: [
         { sp: 'fojtik', en: 'Every mayor carries a hand of tricks — cards, they call them now. A quick wall for one season, no more. A call to volunteers that doubles what your boats can save, if you do not mind what it costs your people’s spirits. Rarer tricks wait behind a locked door.', cs: 'Každý starosta nosí v rukávu pár triků — dneska se tomu říká karty. Rychlá hráz na jednu sezónu, víc ne. Svolání dobrovolníků, které zdvojnásobí, co tvoje čluny zachrání — pokud ti nevadí, co to udělá s náladou lidí. Vzácnější triky čekají za zamčenými dveřmi.' },
@@ -161,10 +202,13 @@ export const INTRO = {
     },
     {
       id: 's09_oceana',
-      still: {
-        file: 'still_09_oceana',
-        prompt: MEMORY + 'A sleek low research campus by a river at dusk, antennae and cooling units on flat roofs, soft blue glow from inside, fragile against a wide sky. ' + LOOK,
-      },
+      shots: [
+        { still: 'px_oceana', prompt: MEMORY + 'A sleek low research campus by a river at dusk, satellite dishes and antennae on flat roofs, soft blue glow from inside, fragile against a wide sky. ' + PX },
+        { cap: 'cap_map', focus: TOWN.oceana },
+        { still: 'px_blind_screens', prompt: 'A dark flood-monitoring control room, every screen dead and black, one chair knocked over, rain hammering the window, blindness. ' + PX },
+        { cap: 'cap_flood_late', focus: TOWN.oceana },
+        { still: 'px_rare_card', prompt: 'A single ornate playing card glowing on a dark desk beside research instruments, blueprint lines faintly visible on it, cold blue and gold light. ' + PX },
+      ],
       caption: { en: 'Lose the data town: no forecast — and no rare cards.', cs: 'Ztratíte-li datové město: žádná předpověď — a žádné vzácné karty.' },
       lines: [
         { sp: 'fojtik', en: 'Oceana floods at the slightest touch — always has. But it is the only place on this river that can tell you what is coming. Lose it, and you are not just down one town. You are blind for every season left. No forecast. No warning. Just weather, arriving.', cs: 'Oceana se zaplaví při sebemenším dotyku — odjakživa. Jenže je to jediné místo na řece, které ti umí říct, co přichází. Ztrať ji, a nepřišel jsi jen o jedno město. Jsi slepý po všechny zbývající sezóny. Žádná předpověď. Žádné varování. Jen počasí, které přichází.' },
@@ -174,10 +218,14 @@ export const INTRO = {
     },
     {
       id: 's10_promises',
-      still: {
-        file: 'still_10_promises',
-        prompt: MEMORY + 'Two silhouetted figures shaking hands on a rain-slicked wooden dock at dusk, one holding a lantern, the dark river behind them, quiet trust. ' + LOOK,
-      },
+      shots: [
+        { still: 'px_handshake', prompt: MEMORY + 'Two silhouetted figures shaking hands on a rain-slicked wooden dock at dusk, one holding a lantern, the dark river behind them, quiet trust. ' + PX },
+        { still: 'px_mayors_fence', prompt: PRESENT + 'Two mayors leaning on a wooden fence above a river bend at evening, one gesturing across the water, the other listening, neighborly. ' + PX },
+        { cap: 'cap_map', zoom: 'out' },
+        { still: 'px_boats_arriving', prompt: 'A line of small boats with lanterns crossing a dark flooded river toward a stricken town at night, neighbors coming to help, hopeful in the gloom. ' + PX },
+        { still: 'px_broken_promise', prompt: MEMORY + 'A door slammed shut in a rain-dark street, a drenched figure turning away with a lowered lantern, betrayal, cold blue night. ' + PX },
+        { still: 'px_handshake', zoom: 'close' },
+      ],
       caption: { en: 'Cooperation costs capital now — and repays it in trust, boats, and capital.', cs: 'Spolupráce teď stojí kapitál — a vrací ho v důvěře, člunech a kapitálu.' },
       lines: [
         { sp: 'fojtik', en: 'Every mayor downriver has their own nature, though you will not know it plain at first. Some keep their word without being asked twice. Some remember every slight for a lifetime. Some will take your help gladly and give nothing back. You learn who is who by how they treat you — and how you treat them in return.', cs: 'Každý starosta po proudu má svou povahu, i když ji zprvu neuvidíš. Někdo drží slovo, aniž bys musel říkat dvakrát. Někdo si pamatuje každou křivdu do smrti. Někdo si tvou pomoc rád vezme a nevrátí nic. Kdo je kdo, poznáš podle toho, jak se chovají k tobě — a jak ty k nim.' },
@@ -189,10 +237,12 @@ export const INTRO = {
     },
     {
       id: 's11_finalpoint',
-      still: {
-        file: 'still_11_finalpoint',
-        prompt: MEMORY + 'A small harbor town at a river mouth in the evening: a lighthouse, moored fishing boats, the river widening into open water, melancholy calm. ' + LOOK,
-      },
+      shots: [
+        { still: 'px_finalpoint', prompt: MEMORY + 'A small harbor town at a river mouth in the evening: a lighthouse, moored fishing boats, the river widening into open water, melancholy calm. ' + PX },
+        { cap: 'cap_map', focus: TOWN.finalpoint },
+        { still: 'px_converge', prompt: MEMORY + 'Aerial view of many swollen tributaries converging into one massive flooded river delta at a coastal town, all the water of a valley arriving at once, overwhelming scale. ' + PX },
+        { still: 'px_lighthouse', prompt: MEMORY + 'A lighthouse beam sweeping over dark rising water at night, waves against a harbor wall, small town lights huddled behind, lonely vigilance. ' + PX },
+      ],
       caption: { en: 'The last town inherits every decision made above it.', cs: 'Poslední město dědí každé rozhodnutí učiněné nad ním.' },
       lines: [
         { sp: 'fojtik', en: 'And at the end of it all — Final Point. Every choice made upstream arrives there, all at once, with nowhere left to send it. I have known good mayors from Final Point who did everything right in their own town. The water that hurt them was never theirs to begin with.', cs: 'A na samém konci — Final Point. Každé rozhodnutí z horního toku tam dorazí najednou, a už není kam je poslat dál. Znal jsem dobré starosty z Final Pointu, kteří ve svém městě udělali všechno správně. Voda, která jim ublížila, nikdy nebyla jejich.' },
@@ -202,10 +252,14 @@ export const INTRO = {
     },
     {
       id: 's12_election',
-      still: {
-        file: 'still_12_election',
-        prompt: 'A crooked framed campaign photograph of a smiling politician hanging on faded wallpaper, a dark waterline stain creeping up the wall just beneath the frame, a flooded street faintly visible through a window behind. Muted, ironic, somber. ' + LOOK,
-      },
+      shots: [
+        { still: 'px_poster', prompt: 'A crooked framed campaign photograph of a smiling politician on faded wallpaper, a dark waterline stain creeping up the wall beneath the frame, a flooded street faintly visible through a window behind. Muted, ironic, somber. ' + PX },
+        { still: 'px_dry_wet', prompt: MEMORY + 'Aerial view: one town perfectly dry inside high concrete walls while the entire valley around it lies underwater, drowned farms and rooftops poking from the flood, stark contrast. ' + PX },
+        { cap: 'cap_news' },
+        { cap: 'cap_news_flood' },
+        { cap: 'cap_briefing' },
+        { still: 'px_mayor_window', prompt: MEMORY + 'A lone mayor silhouetted in a lit office window at night, looking out over a drowned valley reflecting the moon, guilt and quiet, back to the viewer. ' + PX },
+      ],
       caption: { en: 'Re-election is yours. The region is scored separately. You can win one and lose the other.', cs: 'Znovuzvolení je vaše. Kraj se hodnotí zvlášť. Lze vyhrát jedno a prohrát druhé.' },
       lines: [
         { sp: 'fojtik', en: 'I knew a mayor once who did everything right — for his own town. Walled it high. Kept it dry. Kept his people fed and cheerful. Every season, his numbers looked wonderful. His own numbers.', cs: 'Znal jsem kdysi starostu, který udělal všechno správně — pro svoje město. Obehnal ho vysokou hrází. Udržel ho v suchu. Lidi najedené a veselé. Každou sezónu jeho čísla vypadala nádherně. Jeho vlastní čísla.' },
@@ -217,7 +271,12 @@ export const INTRO = {
     },
     {
       id: 's13_thesis',
-      still: { file: 'still_01_kitchen', reuse: true, zoom: 'close' },
+      shots: [
+        { still: 'px_kitchen', zoom: 'close' },
+        { still: 'px_wall_vs_boats', prompt: 'Split composition: on the left a cold concrete levee wall in shadow, on the right a warm cluster of small wooden boats with lanterns, a river running between them, choice made visual. ' + PX },
+        { still: 'px_many_boats', prompt: PRESENT + 'Dozens of small rescue boats moored in neat rows along a river quay at golden hour, oars shipped, life vests stacked, quiet readiness. ' + PX },
+        { still: 'px_fojtik', zoom: 'close' },
+      ],
       caption: null,
       lines: [
         { sp: 'reporter', en: 'So what is the one thing you would want a new mayor to remember? Before the water comes?', cs: 'Takže — co jediné by si měl nový starosta zapamatovat? Než přijde voda?' },
@@ -230,10 +289,10 @@ export const INTRO = {
     },
     {
       id: 's14_title',
-      still: {
-        file: 'still_14_valley',
-        prompt: 'A wide aerial view of a green Central-European river valley at golden hour, a single river winding from forested mountains to a distant sea estuary, seven small towns along its banks, peaceful and vast. ' + LOOK,
-      },
+      shots: [
+        { still: 'px_valley', prompt: 'A wide aerial view of a green Central-European river valley at golden hour, a single river winding from forested mountains to a distant sea estuary, seven small red-roofed towns along its banks, peaceful and vast. ' + PX },
+        { cap: 'cap_menu', zoom: 'close' },
+      ],
       caption: { en: 'POVODEŇ — seven towns · one river · ten seasons', cs: 'POVODEŇ — sedm měst · jedna řeka · deset sezón' },
       lines: [
         { sp: 'reporter', en: 'Every season, two reports arrive. One for the people. One for you, alone. Seven towns. One river. Ten seasons to get both of them right.', cs: 'Každou sezónu přijdou dvě zprávy. Jedna pro lidi. Druhá jen pro vás. Sedm měst. Jedna řeka. Deset sezón na to, aby obě vyšly.' },
@@ -243,17 +302,18 @@ export const INTRO = {
 };
 
 // -----------------------------------------------------------------------------
-// VIDEO 2 — "The Calm Ends" (~30 s, plays entering Round 3 preparation)
+// VIDEO 2 — "The Calm Ends" (plays entering Round 3 preparation)
 // -----------------------------------------------------------------------------
 export const CALM = {
   id: 'calm',
   scenes: [
     {
       id: 'c00_dock',
-      still: {
-        file: 'still_c_dock',
-        prompt: PRESENT + 'An old man alone on a wooden river dock at dusk, tightening the mooring rope of a small boat, a dark line of storm cloud low on the horizon behind him, wind in the grass, foreboding but quiet. ' + LOOK,
-      },
+      shots: [
+        { still: 'px_dock_storm', prompt: PRESENT + 'An old man alone on a wooden river dock at dusk, tightening the mooring rope of a small boat, a dark storm front low on the horizon behind him, wind in the grass, quiet foreboding. ' + PX },
+        { still: 'px_boathouse', prompt: 'The inside of a boathouse at night, lantern light over a row of boats, an old man counting them with his hand on a hull, oars and life vests on the wall, readiness. ' + PX },
+        { cap: 'cap_map', zoom: 'in' },
+      ],
       caption: { en: 'The calm seasons are over. Prepare, or hope.', cs: 'Klidné sezóny skončily. Připravte se — nebo doufejte.' },
       lines: [
         { sp: 'fojtik', en: 'Two seasons of calm. Do not mistake that for peace — it is just the river taking a breath.', cs: 'Dvě klidné sezóny. Nepleť si to s mírem — řeka se jen nadechuje.' },
@@ -265,17 +325,19 @@ export const CALM = {
 };
 
 // -----------------------------------------------------------------------------
-// VIDEO 3 — "After the First Destruction" (~45 s, plays at first real loss)
+// VIDEO 3 — "After the First Destruction" (plays at first real loss)
 // -----------------------------------------------------------------------------
 export const LOSS = {
   id: 'loss',
   scenes: [
     {
       id: 'l00_street',
-      still: {
-        file: 'still_l_street',
-        prompt: MEMORY + 'A flooded European town street being cleared after the water receded: a visible waterline on building facades, a rescue boat pulled up onto a curb, two figures working in the middle distance, overcast documentary mood. Sober, not gory. ' + LOOK,
-      },
+      shots: [
+        { still: 'px_flood_street', prompt: MEMORY + 'A flooded European town street being cleared after the water receded: a visible waterline on building facades, a rescue boat pulled onto a curb, two figures working in the middle distance, overcast documentary mood, sober. ' + PX },
+        { cap: 'cap_flood' },
+        { still: 'px_waterline', prompt: MEMORY + 'Close view of a dark waterline stain across the facades of a row of old houses, mud on doorsteps, a child’s toy left on a windowsill above the line, aftermath. ' + PX },
+        { still: 'px_boats_answer', prompt: PRESENT + 'A town workshop at dawn: new small boats under construction, fresh planks and hulls, determined townspeople working together, morning light through big doors, hope. ' + PX },
+      ],
       caption: { en: 'Damage happened. What you do next round is what counts.', cs: 'Škody přišly. Teď rozhoduje, co uděláte příští kolo.' },
       lines: [
         { sp: 'fojtik', en: 'Every mayor remembers their first real flood.', cs: 'Každý starosta si pamatuje svou první opravdovou povodeň.' },
