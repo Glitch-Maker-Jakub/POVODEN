@@ -28,6 +28,28 @@ python -m http.server 8124        # then open http://127.0.0.1:8124
 **On your server:** copy the whole `povoden/` folder into any static web root
 (Apache, nginx, GitHub Pages, itch.io, university web space). Done. No build step.
 
+## Story videos, in-play coach, phones
+
+Three pieces that sit outside the model but ship with the game:
+
+- **Story videos** — `assets/video/{intro,calm,loss}_{en,cs}.mp4`: an *Elbe
+  Herald* reporter interviewing an old riverman who lived through 2002 and
+  2013, reached from the gold **THE INTERVIEW** button on the menu, plus two
+  in-game check-ins (before round 3, and after a first costly flood). A DOM
+  overlay plays them (`src/ui/video.js`), always skippable, with a 1×–2× speed
+  control; if the files are absent the game falls back to the text advisor, so
+  a slim deployment can leave the folder out.
+  Regeneration pipeline in `tools/video/` (stills + voiceover + ffmpeg; build
+  cache and API keys stay gitignored).
+- **In-play coach** — `src/ui/coach.js`: anchored hint bubbles during rounds 1–2
+  that explain what each control *does* — never what is worth doing, since
+  steering the player would corrupt the cooperation measure the campaign
+  records. NEXT / SKIP TIPS, remembered in `localStorage`, replayable with
+  `?coach=1`.
+- **Phones** — `src/ui/mobile.js`: the canvas follows the dynamic viewport, a
+  portrait gate offers one-tap fullscreen + landscape lock, and a fullscreen
+  chip stays available in landscape.
+
 ## Tests
 
 The game model — flood physics, economy, cards, diplomacy, whole campaigns —
@@ -43,6 +65,16 @@ a seeded generator, so a campaign replayed with the same seed is identical
 round for round (`tests/helpers/campaign.js`). That reproducibility is the
 safety net the tests check refactors and balance changes against. CI runs the
 same command on every pull request.
+
+A second, cheaper gate checks the shipped sources themselves rather than the
+model: every `.js` under `src/` and `server/` parses, the `en`/`cs` catalogs
+hold exactly the same keys, and every `t('…')` literal resolves.
+
+```bash
+npm run selftest
+```
+
+CI runs both, in that order.
 
 The same machinery powers a headless **balance simulator**: `node
 tools/simulate.mjs` replays thousands of seeded campaigns for every
