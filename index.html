@@ -2,7 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- viewport-fit=cover lets the page paint under a notch; env(safe-area-inset-*)
+       then keeps the DOM controls clear of it. User scaling stays ALLOWED on
+       purpose — a player must be able to pinch-zoom into small text. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
   <title>POVODEŇ — Flood</title>
   <style>
     html, body {
@@ -14,17 +19,35 @@
       font-family: monospace;
       overflow: hidden;
     }
+    body {
+      /* No rubber-band / pull-to-refresh stealing a drag from the card hand. */
+      overscroll-behavior: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* Pinned to the *dynamic* viewport: on Android Chrome 100vh is the LARGE
+       viewport (address bar hidden), so with the bar showing the box would be
+       taller than the visible area and the bottom of the FIT canvas (END
+       PREPARATION, the card hand) would sit off-screen with no way to scroll.
+       100dvh fixes that natively; src/ui/mobile.js also sets an explicit px
+       height from visualViewport for browsers without dvh. */
     #game {
+      position: fixed;
+      top: 0;
+      left: 0;
+      inset: 0;
       width: 100vw;
       height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      height: 100dvh;
+      /* No flex centring here: Phaser's CENTER_BOTH already centres the canvas
+         with margins, and the two stacked made the letterbox lopsided. */
     }
     /* Crisp scaling for the pixel-art era look. */
     #game canvas {
       image-rendering: pixelated;
       image-rendering: crisp-edges;
+      /* Kills the 300ms tap delay / double-tap-to-zoom on the canvas while
+         leaving pinch-zoom (two fingers) working. */
+      touch-action: manipulation;
     }
   </style>
 </head>

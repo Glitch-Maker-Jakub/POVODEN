@@ -254,6 +254,53 @@ const S = {
       'This is why the data city matters: protect it, and you see the water ' +
       'coming. Lose it, and you prepare blind.',
 
+    // --- Coach callouts (rounds 1–2 only) --------------------------------
+    // FUNCTION ONLY, never SOLUTION. These explain what a control does and what
+    // happens on screen. They must never say what is better, cheaper or safer,
+    // and must never mention downstream deflection, cooperation pay-offs, the
+    // regional score or re-election — that would steer the research measurement.
+    'coach.next': 'NEXT ▸',
+    'coach.skip': 'SKIP TIPS ✕',
+    'coach.town':
+      'Click any town on the river to make it your Target City. The right-hand panel ' +
+      'then shows that town, and every purchase you make goes there. Your own town is ' +
+      'marked YOU.',
+    'coach.budget':
+      'Your money for this round, in €M — the same unit as flood damage. It resets to ' +
+      'your town’s base figure every round: unspent money does not carry over, only the ' +
+      'Reserve option banks it for the next round.',
+    'coach.invest':
+      'Five options; click one to buy it for the Target City. The price on the button ' +
+      'leaves your budget at once. Buying for your own town costs money only; buying for ' +
+      'another town also spends ⚡1 political capital.',
+    'coach.forecast':
+      'The forecast shows this round’s flood as a range, not a single value. SHARPEN ' +
+      'spends €10M to narrow that range toward the real one; you can do it up to twice ' +
+      'per round.',
+    'coach.cards':
+      'Power cards are played before the flood. Click one to play it on the Target City; ' +
+      'each costs ⚡1. You keep unplayed cards between rounds — up to four in hand, and ' +
+      'one new card is dealt each round if there is room.',
+    'coach.end':
+      'This ends your preparation. The flood then runs down the river town by town, and ' +
+      'the newspaper reports what happened. Nothing can be bought or played once you ' +
+      'press it.',
+    'coach.event':
+      'Every round brings one regional event. This banner names it and says what it ' +
+      'changes for this round only. It is already in effect as you read it.',
+    'coach.meeting':
+      '€15M convenes a regional meeting. For this round your neighbours’ levees, boats ' +
+      'and kits become visible on the map, and this button then opens a planning table: ' +
+      'the projected damage to every town at each flood level.',
+    'coach.deal':
+      'A mayor asks you to fund one named investment in their town this round. ACCEPT and ' +
+      'your promise is checked when the round ends — you must actually buy it there; what ' +
+      'they offer in return arrives the round after. DECLINE closes the offer.',
+    'coach.ledger':
+      'Your town’s ledger: ▲ levees, ⛵ boats and ✚ kits it holds — all carried from round ' +
+      'to round, though a flood sinks some boats and kits. ⚡ is political capital, ' +
+      'refilled at the start of every round. 🔬 is research, which unlocks rarer cards.',
+
     // --- Summary / newspaper chrome --------------------------------------
     'summary.next': 'NEXT EDITION  ▶',
     'summary.again': '↻  PLAY AGAIN',
@@ -644,6 +691,49 @@ const S = {
       'je teď sázka naslepo.\n\n' +
       'Právě proto na datovém městě záleží: ochraňte ho a uvidíte vodu přicházet. ' +
       'Ztraťte ho a připravujete se naslepo.',
+
+    // --- Rady v ploše hry (jen 1.–2. kolo) -------------------------------
+    // POUZE FUNKCE, nikdy ŘEŠENÍ: vysvětlují, co ovládací prvek dělá a co se
+    // stane na obrazovce. Nikdy nehodnotí, co je lepší, levnější či bezpečnější.
+    'coach.next': 'DÁL ▸',
+    'coach.skip': 'PŘESKOČIT TIPY ✕',
+    'coach.town':
+      'Kliknutím na kteroukoli obec u řeky z ní uděláte Cílové město. Pravý panel pak ' +
+      'ukazuje tuto obec a každý váš nákup míří tam. Vaše vlastní obec je označena VY.',
+    'coach.budget':
+      'Vaše peníze na toto kolo v €M — stejná jednotka jako povodňové škody. Na začátku ' +
+      'každého kola se rozpočet vaší obce vrátí na základní částku: neutracené peníze se ' +
+      'nepřevádějí, uloží je jen možnost Rezerva.',
+    'coach.invest':
+      'Pět možností; kliknutím jednu koupíte pro Cílové město. Cena uvedená na tlačítku se ' +
+      'ihned odečte z rozpočtu. Nákup pro vlastní obec stojí jen peníze, nákup pro jinou ' +
+      'obec navíc ⚡1 politického kapitálu.',
+    'coach.forecast':
+      'Předpověď ukazuje letošní povodeň jako rozsah, ne jako jednu hodnotu. Tlačítko ' +
+      'Zpřesnit za €10M zúží rozsah blíž ke skutečné hodnotě; v každém kole to jde ' +
+      'nejvýše dvakrát.',
+    'coach.cards':
+      'Karty moci se hrají před povodní. Kliknutím kartu zahrajete na Cílové město; každá ' +
+      'stojí ⚡1. Nezahrané karty si necháváte mezi koly — v ruce jich může být nejvýše ' +
+      'čtyři a každé kolo přibude jedna nová, pokud je v ruce místo.',
+    'coach.end':
+      'Tímto ukončíte přípravu. Povodeň pak projde řekou obec po obci a noviny shrnou, co ' +
+      'se stalo. Po stisknutí už nelze nic koupit ani zahrát.',
+    'coach.event':
+      'Každé kolo přijde jedna regionální událost. Tento pruh ji pojmenuje a uvádí, co ' +
+      'mění, a to jen pro toto kolo. Ve chvíli, kdy si ho čtete, už platí.',
+    'coach.meeting':
+      'Za €15M svoláte regionální setkání. Pro toto kolo se na mapě zobrazí hráze, čluny ' +
+      'a sady sousedů a toto tlačítko pak otevře tabulku plánování: odhad škod pro každou ' +
+      'obec při každé síle povodně.',
+    'coach.deal':
+      'Starosta vás žádá, abyste toto kolo financovali jednu konkrétní investici v jeho ' +
+      'obci. Tlačítko PŘIJMOUT nabídku potvrdí — na konci kola se ověří, zda jste ji tam ' +
+      'skutečně koupili; co nabízí na oplátku, dorazí o kolo později. ODMÍTNOUT nabídku uzavře.',
+    'coach.ledger':
+      'Přehled vaší obce: ▲ hráze, ⛵ čluny a ✚ sady, které vlastní — vše se přenáší z kola ' +
+      'na kolo, i když povodeň část člunů a sad zničí. ⚡ je politický kapitál, doplňuje se ' +
+      'na začátku každého kola. 🔬 je výzkum, který odemyká vzácnější karty.',
 
     // --- Summary / newspaper chrome --------------------------------------
     'summary.next': 'DALŠÍ VYDÁNÍ  ▶',

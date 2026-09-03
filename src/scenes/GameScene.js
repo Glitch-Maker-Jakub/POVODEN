@@ -5,6 +5,7 @@ import { t, getLang } from '../i18n.js';
 import { submitScore, promptName } from '../net/scoreboard.js';
 import { beginCampaign, logEvent, flush as flushTelemetry } from '../net/telemetry.js';
 import { playVideo, videoSeen } from '../ui/video.js';
+import { createCoach, coachDisabled } from '../ui/coach.js';
 import {
   createGameState, PHASE, muniById, playerMuni,
   purchase, canInvest, resolveRound, advanceRound, regionalScore,
@@ -39,6 +40,22 @@ export default class GameScene extends Phaser.Scene {
     this.targetId = this.gs.playerMuniId;
     this.animating = false;
     this.nodes = {};
+    this.openModals = 0;   // >0 while a modal is up — the coach stays hidden
+    this.coach = null;
+    this._lossVideoTried = false;   // per campaign — the scene instance is reused
+  }
+
+  // Every modal wraps its objects in this pair so the coach never draws on top
+  // of one. Counted (not a boolean) because showSummary can re-enter after a
+  // video; clamped at 0 so it can never drift negative and lock the coach out.
+  modalOpen() {
+    this.openModals = (this.openModals | 0) + 1;
+    if (this.coach) this.coach.refresh();
+  }
+
+  modalClose() {
+    this.openModals = Math.max(0, (this.openModals | 0) - 1);
+    if (this.coach) this.coach.refresh();
   }
 
   create() {
@@ -59,11 +76,60 @@ export default class GameScene extends Phaser.Scene {
     this.buildRightPanel();
     this.buildCardHand();
     this.buildTooltips();
+    this.buildCoach();
     this.refreshAll();
     if (this.gs.round === 1) {
       beginCampaign(playerMuni(this.gs).def.name);   // opt-in research: campaign start
-      this.showAdvisor(t('advisor.1'));
+      this.showAdvisor(t('advisor.1'), () => this.coach && this.coach.begin());
     }
+  }
+
+  // --- Coach callouts (rounds 1–2) -------------------------------------------
+  // Short anchored hints that explain WHAT each control does — function only,
+  // never strategy (see src/ui/coach.js). Rebuilt in create() and torn down on
+  // 'shutdown', so a restarted scene never inherits a previous campaign's coach.
+  buildCoach() {
+    if (coachDisabled()) { this.coach = null; return; }
+    const gs = () => this.gs;
+    const steps = [
+      // The very first callout: keep it off a pending deal, the meeting button,
+      // the side panel and the card hand so a newcomer's screen stays readable.
+      { key: 'town', minRound: 1, usedBy: 'select', prefer: ['right', 'below', 'left', 'above'],
+        anchor: () => this.nodes[gs().playerMuniId] && this.nodes[gs().playerMuniId].sprite,
+        avoid: () => [
+          this.diplo && this.diplo.c.visible ? this.diplo.c : null,
+          this.meetingBtn, this.eventText,
+          { x: MAP_W, y: 0, width: DESIGN_W - MAP_W, height: DESIGN_H },
+          { x: 0, y: 612, width: MAP_W, height: DESIGN_H - 612 },
+        ] },
+      { key: 'budget', minRound: 1, prefer: ['left', 'below', 'above', 'right'],
+        anchor: () => this.budgetText },
+      { key: 'invest', minRound: 1, usedBy: 'buy', prefer: ['left', 'above', 'below', 'right'],
+        anchor: () => this.cards[0] },
+      { key: 'forecast', minRound: 1, usedBy: 'sharpen', prefer: ['below', 'right', 'left', 'above'],
+        anchor: () => [this.sevText, this.sharpenBtn] },
+      { key: 'cards', minRound: 1, usedBy: 'card', prefer: ['above', 'right', 'left', 'below'],
+        when: () => !!(this.cardSlots && this.cardSlots[0] && this.cardSlots[0].visible),
+        anchor: () => this.cardSlots[0] },
+      { key: 'end', minRound: 1, usedBy: 'end', prefer: ['left', 'above', 'below', 'right'],
+        anchor: () => this.endBtn },
+
+      { key: 'event', minRound: 2, prefer: ['below', 'left', 'right', 'above'],
+        when: () => !!gs().currentEvent, anchor: () => this.eventText },
+      { key: 'meeting', minRound: 2, usedBy: 'meeting', prefer: ['below', 'right', 'left', 'above'],
+        anchor: () => this.meetingBtn },
+      { key: 'deal', minRound: 2, usedBy: 'deal', prefer: ['below', 'right', 'left', 'above'],
+        when: () => !!(this.diplo && this.diplo.c && this.diplo.c.visible),
+        anchor: () => this.diplo.c },
+      { key: 'ledger', minRound: 2, prefer: ['left', 'below', 'above', 'right'],
+        anchor: () => this.researchText },
+    ];
+    this.coach = createCoach(this, steps, {
+      onLog: (step, action) => logEvent('coach', { step, action }, this.gs.round),
+    });
+    this.events.once('shutdown', () => {
+      if (this.coach) { this.coach.destroy(); this.coach = null; }
+    });
   }
 
   // Hover tooltips that explain the HUD symbols a non-gamer won't recognise.
@@ -163,6 +229,7 @@ export default class GameScene extends Phaser.Scene {
       sfx.click();
       this.flashText(t('flash.declined', { mayor: MAYORS[p.from].name }));
     }
+    if (this.coach) this.coach.used('deal');
     this.updateProposal();
     this.refreshAll();
   }
@@ -173,6 +240,7 @@ export default class GameScene extends Phaser.Scene {
       sfx.meeting();
       logEvent('meeting', {}, this.gs.round);
       this.flashText(t('flash.meetingConvened'));
+      if (this.coach) this.coach.used('meeting');
       this.refreshAll();
       this.showFloodTable();   // show the planning data they just paid for
     } else {
@@ -194,6 +262,7 @@ export default class GameScene extends Phaser.Scene {
     const pw = 900, ph = 462, cx = width / 2, top = height / 2 - ph / 2;
     const group = [];
     const add = (o) => { group.push(o); return o; };
+    this.modalOpen();
     add(this.add.rectangle(cx, height / 2, width, height, 0x000000, 0.7).setInteractive());
     add(this.add.rectangle(cx, height / 2, pw, ph, 0x10192b).setStrokeStyle(3, 0x2a4a7a));
 
@@ -240,7 +309,7 @@ export default class GameScene extends Phaser.Scene {
     });
 
     const btn = makeButton(this, cx, top + ph - 28, 200, 42, t('table.close'),
-      () => { sfx.click(); group.forEach((o) => o.destroy()); btn.destroy(); },
+      () => { sfx.click(); group.forEach((o) => o.destroy()); btn.destroy(); this.modalClose(); },
       { fill: 0x2a4a7a, fillHover: 0x37609b, fontSize: 14 });
   }
 
@@ -267,6 +336,7 @@ export default class GameScene extends Phaser.Scene {
       sfx.click();
       logEvent('sharpen', { level: this.gs.forecastLevel }, this.gs.round);
       this.flashText(t('flash.sharpened'));
+      if (this.coach) this.coach.used('sharpen');
       this.refreshAll();
     }
   }
@@ -464,6 +534,7 @@ export default class GameScene extends Phaser.Scene {
       let msg = t('flash.cardPlayed', { card: cardName });
       if (this.gs.lastAudit) msg = t('flash.cardReserves', { card: cardName, audit: this.gs.lastAudit.name, banked: this.gs.lastAudit.banked });
       this.flashText(msg);
+      if (this.coach) this.coach.used('card');
       this.refreshAll();
     } else {
       this.flashText(t('flash.cardNoTarget', { card: t(`card.${card.id}.name`) }));
@@ -474,6 +545,7 @@ export default class GameScene extends Phaser.Scene {
   selectTarget(id) {
     if (this.animating || this.gs.phase !== PHASE.PREP) return;
     this.targetId = id;
+    if (this.coach) this.coach.used('select');
     this.refreshAll();
   }
 
@@ -484,12 +556,14 @@ export default class GameScene extends Phaser.Scene {
       sfx.invest();
       logEvent('invest', { kind: key, target: this.targetId, own: this.targetId === this.gs.playerMuniId }, this.gs.round);
       this.flashText(t('flash.invested', { inv: t(`inv.${key}.name`), town: muniById(this.gs, this.targetId).def.name }));
+      if (this.coach) this.coach.used('buy');
       this.refreshAll();
     }
   }
 
   endPreparation() {
     if (this.animating || this.gs.phase !== PHASE.PREP) return;
+    if (this.coach) this.coach.used('end');
     runAllAI(this.gs);                 // AI mayors commit
     const results = resolveRound(this.gs); // draw severity + simulate (phase -> SUMMARY)
     this.playFlood(results);
@@ -556,11 +630,12 @@ export default class GameScene extends Phaser.Scene {
     if (r.boatsLost > 0) this.popText(node.x - 34, node.y + 2, `−${r.boatsLost}⛵`, '#9fd9ff');
   }
 
-  showAdvisor(text) {
+  showAdvisor(text, onClose) {
     const width = DESIGN_W, height = DESIGN_H;
     const pw = 640, ph = 390;
     const group = [];
     const add = (o) => { group.push(o); return o; };
+    this.modalOpen();
     add(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6).setInteractive());
     add(this.add.rectangle(width / 2, height / 2, pw, ph, COL.panel).setStrokeStyle(3, COL.accent));
     add(this.add.text(width / 2, height / 2 - ph / 2 + 24, t('advisor.title'), { fontFamily: FONT, fontSize: '18px', color: '#ffd56b' }).setOrigin(0.5));
@@ -568,7 +643,13 @@ export default class GameScene extends Phaser.Scene {
       fontFamily: FONT, fontSize: '14px', color: COL.ink, align: 'left', wordWrap: { width: pw - 56 }, lineSpacing: 6,
     }).setOrigin(0, 0));
     const btn = makeButton(this, width / 2, height / 2 + ph / 2 - 32, 200, 46, t('advisor.gotit'),
-      () => { sfx.click(); group.forEach((o) => o.destroy()); btn.destroy(); },
+      () => {
+        sfx.click();
+        group.forEach((o) => o.destroy());
+        btn.destroy();
+        this.modalClose();
+        if (onClose) onClose();
+      },
       { fill: 0x1f7a3d, fillHover: 0x2a9b4f, fontSize: 15 });
   }
 
@@ -602,6 +683,7 @@ export default class GameScene extends Phaser.Scene {
       flushTelemetry();
     }
     if (last.totalDeaths > 100 || last.totalDamage > 1500) sfx.bad(); else sfx.good();
+    this.modalOpen();   // after the video early-return, so the count cannot drift
 
     const art = writeArticle(gs);
     const toneColor = ({ calm: 0x356a9c, mild: 0x3a7d8a, damage: 0x9c6a2b, disaster: 0x8a2b2b })[art.tone] || 0x356a9c;
@@ -699,6 +781,7 @@ export default class GameScene extends Phaser.Scene {
         sfx.click();
         group.forEach((o) => o.destroy());
         btn.destroy();
+        this.modalClose();
         if (isFinal) this.showFinalBriefing();   // public paper → private memo
         else this.startNextRound();
       }, { fill: 0x1f7a3d, fillHover: 0x2a9b4f, fontSize: 16 });
@@ -730,6 +813,7 @@ export default class GameScene extends Phaser.Scene {
     const topM = 20;
     const group = [], mod = [];
     const add = (o) => { group.push(o); mod.push(o); return o; };
+    this.modalOpen();
 
     group.push(this.add.rectangle(cx, height / 2, width, height, 0x000000, 0.72).setInteractive());
     const card = add(this.add.rectangle(cx, topM, pw, 100, 0x111a2c).setStrokeStyle(3, 0xc9a24b).setOrigin(0.5, 0));
@@ -786,7 +870,8 @@ export default class GameScene extends Phaser.Scene {
     }, { fill: 0x2a4a7a, fillHover: 0x37609b, fontSize: 14 });
     mod.push(subBtn);
     const btn = makeButton(this, cx + 135, ty + 23, 250, 46, t('brief.again'), () => {
-      sfx.click(); group.forEach((o) => o.destroy()); btn.destroy(); subBtn.destroy(); this.scene.start('Menu');
+      sfx.click(); group.forEach((o) => o.destroy()); btn.destroy(); subBtn.destroy();
+      this.modalClose(); this.scene.start('Menu');
     }, { fill: 0x1f7a3d, fillHover: 0x2a9b4f, fontSize: 16 });
     mod.push(btn); ty += 46 + 20;
 
@@ -819,15 +904,19 @@ export default class GameScene extends Phaser.Scene {
     this.sevText.setColor(COL.ink);
     this.refreshAll();
     if (this.gs.coopDividendApplied) { this.gs.coopDividendApplied = false; this.flashText(t('flash.coopDividend')); }
+    // The coach's round-2 callouts start once the advisor modal is dismissed.
+    const startCoach = () => { if (this.coach) this.coach.begin(); };
     // One-time warning the season after the data city is lost: forecasts are gone.
     if (this.gs.oceanaJustLost) {
       this.gs.oceanaJustLost = false;
-      this.showAdvisor(t('advisor.oceanaLost'));
+      this.showAdvisor(t('advisor.oceanaLost'), startCoach);
     } else if (this.gs.round === 3 && !videoSeen('calm')) {
       // The calm is over — Fojtík's dockside warning (video), advisor text as fallback.
       playVideo('calm', (ok) => { if (!ok) this.showAdvisor(t('advisor.3')); });
     } else if (ADVISOR_ROUNDS.includes(this.gs.round)) {
-      this.showAdvisor(t(`advisor.${this.gs.round}`));
+      this.showAdvisor(t(`advisor.${this.gs.round}`), startCoach);
+    } else {
+      startCoach();   // no advisor this round (e.g. tips left over from round 1)
     }
   }
 
@@ -964,6 +1053,7 @@ export default class GameScene extends Phaser.Scene {
     this.researchText.setText(assets).setColor(scarceBits.length ? '#ffcf8b' : '#9fb6d0');
     this.updateHand();
     this.updateProposal();
+    if (this.coach) this.coach.refresh();   // re-anchor / re-evaluate the callout
   }
 
   // --- little fx -------------------------------------------------------------

@@ -144,6 +144,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const EVENT_TYPES = new Set([
   'consent', 'campaign_start', 'invest', 'card', 'deal', 'meeting',
   'favour', 'sharpen', 'round_end', 'campaign_end',
+  'coach',   // in-play tutorial callouts: {step, action: shown|next|used|skip|done}
 ]);
 
 app.post('/api/events', async (req, res) => {

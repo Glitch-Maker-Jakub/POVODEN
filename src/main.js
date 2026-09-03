@@ -4,6 +4,7 @@ import HowToScene from './scenes/HowToScene.js';
 import GameScene from './scenes/GameScene.js';
 import ScoreboardScene from './scenes/ScoreboardScene.js';
 import CreditsScene from './scenes/CreditsScene.js';
+import { initMobile } from './ui/mobile.js';
 
 const Phaser = window.Phaser;
 
@@ -41,3 +42,7 @@ const config = {
 
 // Exposed for debugging / automated verification (drive scenes from the console).
 window.GAME = new Phaser.Game(config);
+
+// Phone adaptation: dynamic-viewport sizing, rotate-to-landscape gate and a
+// one-tap fullscreen + orientation lock. A no-op on desktop.
+initMobile(window.GAME);

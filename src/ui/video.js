@@ -33,12 +33,24 @@ export function playVideo(id, onDone) {
   video.src = src;
   video.playsInline = true;
   video.style.cssText = 'max-width:100vw;max-height:100vh;width:100%;outline:none;';
+  // Controls sit in one flex row (top-right) so the two buttons never overlap
+  // whatever width the localized SKIP label has. Plain px first, then the
+  // safe-area variants: on a notched phone held in landscape the plain offsets
+  // put them under the notch / rounded corner. Padding gives a 40px fingertip
+  // target.
+  const ctrls = document.createElement('div');
+  ctrls.style.cssText =
+    'position:absolute;top:18px;right:22px;' +
+    'top:max(18px,env(safe-area-inset-top,0px));' +
+    'right:calc(22px + env(safe-area-inset-right,0px));' +
+    'display:flex;gap:10px;';
+  const btnCss =
+    'padding:11px 20px;font-family:monospace;' +
+    'font-size:13px;cursor:pointer;color:#e6eef7;background:rgba(17,26,44,.85);' +
+    'touch-action:manipulation;';
   const skip = document.createElement('button');
   skip.textContent = t('video.skip');
-  skip.style.cssText =
-    'position:absolute;top:18px;right:22px;padding:9px 20px;font-family:monospace;' +
-    'font-size:13px;cursor:pointer;color:#e6eef7;background:rgba(17,26,44,.85);' +
-    'border:1px solid #c9a24b;';
+  skip.style.cssText = btnCss + 'border:1px solid #c9a24b;';
 
   // Playback-speed control (the interview is deliberately unhurried — let the
   // player decide). Cycles through rates; the choice persists across videos.
@@ -47,10 +59,7 @@ export function playVideo(id, onDone) {
   try { rate = parseFloat(localStorage.getItem('povoden_video_rate')) || 1; } catch (e) { /* ignore */ }
   if (!RATES.includes(rate)) rate = 1;
   const speed = document.createElement('button');
-  speed.style.cssText =
-    'position:absolute;top:18px;right:132px;padding:9px 16px;font-family:monospace;' +
-    'font-size:13px;cursor:pointer;color:#e6eef7;background:rgba(17,26,44,.85);' +
-    'border:1px solid #3a5b8a;';
+  speed.style.cssText = btnCss + 'border:1px solid #3a5b8a;';
   const showRate = () => { speed.textContent = `${rate}×`; video.playbackRate = rate; };
   speed.onclick = () => {
     rate = RATES[(RATES.indexOf(rate) + 1) % RATES.length];
@@ -59,7 +68,8 @@ export function playVideo(id, onDone) {
   };
   showRate();
 
-  wrap.append(video, speed, skip);
+  ctrls.append(speed, skip);
+  wrap.append(video, ctrls);
   document.body.append(wrap);
 
   let finished = false;
