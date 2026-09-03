@@ -7,18 +7,42 @@ in-game Scoreboard screen just reports itself offline.
 ## Setup
 
 ```bash
-# 1. Dependencies (Node ≥ 18)
+# 1. Dependencies (Node ≥ 18) — reproducible from the lockfile
 cd server
-npm install
+npm ci
 
-# 2. Database
+# 2. Database + versioned migrations (transactional, tracked in schema_migrations)
 psql -c "CREATE DATABASE povoden"
-psql povoden -f schema.sql
-
-# 3. Configuration + run
 export DATABASE_URL=postgres://user:pass@localhost:5432/povoden   # Windows: set DATABASE_URL=...
+npm run migrate
+
+# 3. Run
 npm start
 ```
+
+## Configuration
+
+| Env | Default | Meaning |
+|---|---|---|
+| `DATABASE_URL` | — (required) | PostgreSQL connection string |
+| `PORT` | `3000` | listen port |
+| `CORS_ORIGINS` | unset | comma-separated origin allowlist; unset = same-origin only, `*` opens the API explicitly |
+| `TRUST_PROXY` | none | proxy hops to trust for client IPs (`1` behind one reverse proxy); without it a spoofed `x-forwarded-for` cannot bypass rate limits |
+| `SERVE_STATIC` | `true` | `false` = API only (game hosted elsewhere) |
+
+## Operations
+
+- **Deploy**: `npm ci && npm run migrate && npm start` (migrations are idempotent
+  and transactional; a failed migration rolls back and aborts the deploy).
+- **Rollback**: restore the database from backup or ship a new forward
+  migration — applied files are recorded in `schema_migrations`.
+- **Shutdown**: on SIGTERM/SIGINT the server stops accepting requests, drains
+  in-flight ones and closes the pool (readiness: `/api/health`, liveness: `/api/live`).
+- **Scaling note**: the rate limiter is per-process. The supported deployment is
+  a single instance; for several instances enforce limits at the shared reverse
+  proxy instead.
+- **Tests**: `npm test` in the repository root exercises the full API surface
+  with a stubbed database — no PostgreSQL needed (`tests/server.test.js`).
 
 `npm start` serves **both** the API and the static game from the repository root on
 `http://localhost:3000` — one process hosts everything.

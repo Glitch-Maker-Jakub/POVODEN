@@ -74,7 +74,7 @@ export default class ScoreboardScene extends Phaser.Scene {
     this.status.setText(t('score.loading')).setColor(COL.inkDim);
 
     const wanted = this.period;                    // guard against stale responses
-    const entries = await fetchScores(wanted, 15);
+    const { entries } = await fetchScores(wanted, 15);
     if (wanted !== this.period || !this.scene.isActive()) return;
 
     if (entries === null) { this.status.setText(t('score.offline')).setColor('#ffcf8b'); return; }

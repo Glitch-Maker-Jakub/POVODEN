@@ -28,6 +28,31 @@ python -m http.server 8124        # then open http://127.0.0.1:8124
 **On your server:** copy the whole `povoden/` folder into any static web root
 (Apache, nginx, GitHub Pages, itch.io, university web space). Done. No build step.
 
+## Tests
+
+The game model — flood physics, economy, cards, diplomacy, whole campaigns —
+runs headless and is covered by characterization tests (Node's built-in test
+runner, zero dependencies, no browser or database needed):
+
+```bash
+npm test
+```
+
+All model randomness flows through an injected RNG; `src/model/rng.js` provides
+a seeded generator, so a campaign replayed with the same seed is identical
+round for round (`tests/helpers/campaign.js`). That reproducibility is the
+safety net the tests check refactors and balance changes against. CI runs the
+same command on every pull request.
+
+The same machinery powers a headless **balance simulator**: `node
+tools/simulate.mjs` replays thousands of seeded campaigns for every
+municipality under named strategies (selfish, cooperative, rescue-first, …) and
+writes a Markdown report with paired-comparison statistics — see
+`docs/balance/baseline-2026-07.md` for the current baseline and
+`docs/balance/playtest-protocol.md` for the moderated-playtest template it
+pairs with. The simulator only reports; balance changes remain design
+decisions.
+
 ## Scoreboard (optional, PostgreSQL)
 
 A small optional **Node.js + PostgreSQL** service under `server/` provides a public
@@ -38,8 +63,8 @@ without it — the in-game Scoreboard screen simply reports itself offline.
 cd server
 npm install
 psql -c "CREATE DATABASE povoden"
-psql povoden -f schema.sql
 export DATABASE_URL=postgres://user:pass@localhost:5432/povoden   # Windows: set DATABASE_URL=...
+npm run migrate    # versioned, transactional schema migrations
 npm start          # serves BOTH the game and the API on http://localhost:3000
 ```
 
@@ -158,10 +183,17 @@ upstream-commits-first turn order, and balance tuning from real playtests.
 
 ## Assets
 
-Pixel art is generated at build time and committed as static PNG/JPEG under
-`assets/`. To regenerate or restyle, see `tools/README.md`
-(`node tools/gen-assets.mjs` → `python tools/resize-assets.py`). The key lives
-only in the gitignored `tools/.env.local`; it never ships with the game.
+Pixel art is generated at build time: sources live in `assets/src/`, and one
+idempotent pipeline derives everything the game loads (WebP + JPEG twins, 1x
+and `@2x` background variants, pre-keyed transparent town sprites). To
+regenerate or restyle, see `tools/README.md` (`node tools/gen-assets.mjs` →
+`python3 tools/build-assets.py`). The key lives only in the gitignored
+`tools/.env.local`; it never ships with the game.
+
+Images load progressively (`src/ui/assets.js`): the boot screen fetches only
+the menu background, the board art loads when a campaign starts, and the
+newspaper photos arrive in the background during the first preparation phase.
+`npm test` enforces the download and decoded-memory budgets.
 
 ## Debugging
 
