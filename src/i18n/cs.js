@@ -136,6 +136,10 @@ export default {
     'research.off': '🔬 Výzkum: VYPNUTO',
     'research.id': 'výzkumné ID: {id}',
 
+    // --- Příběhová videa -----------------------------------------------------
+    'menu.interview': '▶ ROZHOVOR',
+    'video.skip': 'PŘESKOČIT ▸',
+
     // --- HUD --------------------------------------------------------------
     'hud.round': 'KOLO {n} / {total}',
     'hud.prep': '● PŘÍPRAVA',
@@ -231,6 +235,49 @@ export default {
       'je teď sázka naslepo.\n\n' +
       'Právě proto na datovém městě záleží: ochraňte ho a uvidíte vodu přicházet. ' +
       'Ztraťte ho a připravujete se naslepo.',
+
+    // --- Rady v ploše hry (jen 1.–2. kolo) -------------------------------
+    // POUZE FUNKCE, nikdy ŘEŠENÍ: vysvětlují, co ovládací prvek dělá a co se
+    // stane na obrazovce. Nikdy nehodnotí, co je lepší, levnější či bezpečnější.
+    'coach.next': 'DÁL ▸',
+    'coach.skip': 'PŘESKOČIT TIPY ✕',
+    'coach.town':
+      'Kliknutím na kteroukoli obec u řeky z ní uděláte Cílové město. Pravý panel pak ' +
+      'ukazuje tuto obec a každý váš nákup míří tam. Vaše vlastní obec je označena VY.',
+    'coach.budget':
+      'Vaše peníze na toto kolo v €M — stejná jednotka jako povodňové škody. Na začátku ' +
+      'každého kola se rozpočet vaší obce vrátí na základní částku: neutracené peníze se ' +
+      'nepřevádějí, uloží je jen možnost Rezerva.',
+    'coach.invest':
+      'Pět možností; kliknutím jednu koupíte pro Cílové město. Cena uvedená na tlačítku se ' +
+      'ihned odečte z rozpočtu. Nákup pro vlastní obec stojí jen peníze, nákup pro jinou ' +
+      'obec navíc ⚡1 politického kapitálu.',
+    'coach.forecast':
+      'Předpověď ukazuje letošní povodeň jako rozsah, ne jako jednu hodnotu. Tlačítko ' +
+      'Zpřesnit za €10M zúží rozsah blíž ke skutečné hodnotě; v každém kole to jde ' +
+      'nejvýše dvakrát.',
+    'coach.cards':
+      'Karty moci se hrají před povodní. Kliknutím kartu zahrajete na Cílové město; každá ' +
+      'stojí ⚡1. Nezahrané karty si necháváte mezi koly — v ruce jich může být nejvýše ' +
+      'čtyři a každé kolo přibude jedna nová, pokud je v ruce místo.',
+    'coach.end':
+      'Tímto ukončíte přípravu. Povodeň pak projde řekou obec po obci a noviny shrnou, co ' +
+      'se stalo. Po stisknutí už nelze nic koupit ani zahrát.',
+    'coach.event':
+      'Každé kolo přijde jedna regionální událost. Tento pruh ji pojmenuje a uvádí, co ' +
+      'mění, a to jen pro toto kolo. Ve chvíli, kdy si ho čtete, už platí.',
+    'coach.meeting':
+      'Za €15M svoláte regionální setkání. Pro toto kolo se na mapě zobrazí hráze, čluny ' +
+      'a sady sousedů a toto tlačítko pak otevře tabulku plánování: odhad škod pro každou ' +
+      'obec při každé síle povodně.',
+    'coach.deal':
+      'Starosta vás žádá, abyste toto kolo financovali jednu konkrétní investici v jeho ' +
+      'obci. Tlačítko PŘIJMOUT nabídku potvrdí — na konci kola se ověří, zda jste ji tam ' +
+      'skutečně koupili; co nabízí na oplátku, dorazí o kolo později. ODMÍTNOUT nabídku uzavře.',
+    'coach.ledger':
+      'Přehled vaší obce: ▲ hráze, ⛵ čluny a ✚ sady, které vlastní — vše se přenáší z kola ' +
+      'na kolo, i když povodeň část člunů a sad zničí. ⚡ je politický kapitál, doplňuje se ' +
+      'na začátku každého kola. 🔬 je výzkum, který odemyká vzácnější karty.',
 
     // --- Summary / newspaper chrome --------------------------------------
     'summary.next': 'DALŠÍ VYDÁNÍ  ▶',

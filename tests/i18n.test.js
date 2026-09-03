@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, join, sep } from 'node:path';
 
 import en from '../src/i18n/en.js';
 import cs from '../src/i18n/cs.js';
@@ -51,12 +51,21 @@ test('no catalog value is empty', () => {
 
 // --- code ↔ catalog cross-check -------------------------------------------------
 
-/** All .js source files of the client (game code only, not tests/tools). */
+const I18N_FILE = join(ROOT, 'src', 'i18n.js');
+const I18N_DIR = join(ROOT, 'src', 'i18n');
+
+/**
+ * All .js source files of the client (game code only, not tests/tools).
+ * i18n.js and the catalogs under src/i18n/ are excluded: the loader documents
+ * its API in prose (t('key', vars?)) and the catalogs are data, not call sites.
+ * The exclusion is built with join()/sep so it also holds on Windows, where a
+ * hardcoded '/' never matches a native path.
+ */
 function sourceFiles(dir = join(ROOT, 'src'), acc = []) {
   for (const f of readdirSync(dir)) {
     const p = join(dir, f);
     if (statSync(p).isDirectory()) sourceFiles(p, acc);
-    else if (f.endsWith('.js') && !p.includes(`src${'/'}i18n`)) acc.push(p);
+    else if (f.endsWith('.js') && p !== I18N_FILE && !p.startsWith(I18N_DIR + sep)) acc.push(p);
   }
   return acc;
 }
@@ -65,6 +74,15 @@ const allSource = sourceFiles().map((p) => readFileSync(p, 'utf8')).join('\n');
 
 /** Statically referenced keys: t('some.key') with no interpolation. */
 const staticKeys = [...allSource.matchAll(/\bt\(\s*'([\w.]+)'/g)].map((m) => m[1]);
+
+// The in-play coach (src/ui/coach.js) renders each step with t(`coach.${step.key}`),
+// so its keys are never literals in the source. The step list is defined in
+// GameScene.buildCoach; keep this in step with it, and adding a callout without
+// both translations fails the cross-check below.
+const COACH_STEPS = [
+  'town', 'budget', 'invest', 'forecast', 'cards', 'end',
+  'event', 'meeting', 'deal', 'ledger',
+];
 
 // Dynamic key families the code builds with template literals, enumerated
 // from game data so that ADDING a card/event/trait/investment without its
@@ -81,6 +99,7 @@ function dynamicKeys() {
   for (const p of Object.values(PRODUCERS)) keys.push(`res.${p.res}`, `prod.dep.${p.res}`);
   for (const r of rewardKeys) keys.push(`deal.reward.${r}`);
   for (const rel of ['ally', 'neutral', 'rival']) keys.push(`rel.${rel}`);
+  for (const step of COACH_STEPS) keys.push(`coach.${step}`);
   return keys;
 }
 
@@ -106,6 +125,16 @@ test('no catalog key is dead (unreferenced by code)', () => {
     && !dynamic.has(k)
     && !dynamicPrefixes.some((p) => k.startsWith(p)));
   assert.deepEqual(dead, [], `unused catalog keys (delete or wire up):\n${dead.join('\n')}`);
+});
+
+test('the coach step list stays in step with GameScene.buildCoach', () => {
+  // COACH_STEPS is what makes the two checks above see coach.* keys at all, so
+  // it must not silently drift from the scene that defines the callouts.
+  const src = readFileSync(join(ROOT, 'src', 'scenes', 'GameScene.js'), 'utf8');
+  const inCode = [...src.matchAll(/\{\s*key:\s*'(\w+)',\s*minRound:/g)].map((m) => m[1]);
+  assert.deepEqual(inCode, COACH_STEPS,
+    'COACH_STEPS differs from the steps in GameScene.buildCoach — add the new '
+    + 'callout to both catalogs and list it here');
 });
 
 // --- runtime behaviour -----------------------------------------------------------

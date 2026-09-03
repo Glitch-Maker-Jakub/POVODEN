@@ -136,6 +136,10 @@ export default {
     'research.off': '🔬 Research: OFF',
     'research.id': 'research ID: {id}',
 
+    // --- Story videos -------------------------------------------------------
+    'menu.interview': '▶ THE INTERVIEW',
+    'video.skip': 'SKIP ▸',
+
     // --- HUD / top bar ----------------------------------------------------
     'hud.round': 'ROUND {n} / {total}',
     'hud.prep': '● PREPARATION',
@@ -231,6 +235,53 @@ export default {
       'Every remaining season is now a gamble in the dark.\n\n' +
       'This is why the data city matters: protect it, and you see the water ' +
       'coming. Lose it, and you prepare blind.',
+
+    // --- Coach callouts (rounds 1–2 only) --------------------------------
+    // FUNCTION ONLY, never SOLUTION. These explain what a control does and what
+    // happens on screen. They must never say what is better, cheaper or safer,
+    // and must never mention downstream deflection, cooperation pay-offs, the
+    // regional score or re-election — that would steer the research measurement.
+    'coach.next': 'NEXT ▸',
+    'coach.skip': 'SKIP TIPS ✕',
+    'coach.town':
+      'Click any town on the river to make it your Target City. The right-hand panel ' +
+      'then shows that town, and every purchase you make goes there. Your own town is ' +
+      'marked YOU.',
+    'coach.budget':
+      'Your money for this round, in €M — the same unit as flood damage. It resets to ' +
+      'your town’s base figure every round: unspent money does not carry over, only the ' +
+      'Reserve option banks it for the next round.',
+    'coach.invest':
+      'Five options; click one to buy it for the Target City. The price on the button ' +
+      'leaves your budget at once. Buying for your own town costs money only; buying for ' +
+      'another town also spends ⚡1 political capital.',
+    'coach.forecast':
+      'The forecast shows this round’s flood as a range, not a single value. SHARPEN ' +
+      'spends €10M to narrow that range toward the real one; you can do it up to twice ' +
+      'per round.',
+    'coach.cards':
+      'Power cards are played before the flood. Click one to play it on the Target City; ' +
+      'each costs ⚡1. You keep unplayed cards between rounds — up to four in hand, and ' +
+      'one new card is dealt each round if there is room.',
+    'coach.end':
+      'This ends your preparation. The flood then runs down the river town by town, and ' +
+      'the newspaper reports what happened. Nothing can be bought or played once you ' +
+      'press it.',
+    'coach.event':
+      'Every round brings one regional event. This banner names it and says what it ' +
+      'changes for this round only. It is already in effect as you read it.',
+    'coach.meeting':
+      '€15M convenes a regional meeting. For this round your neighbours’ levees, boats ' +
+      'and kits become visible on the map, and this button then opens a planning table: ' +
+      'the projected damage to every town at each flood level.',
+    'coach.deal':
+      'A mayor asks you to fund one named investment in their town this round. ACCEPT and ' +
+      'your promise is checked when the round ends — you must actually buy it there; what ' +
+      'they offer in return arrives the round after. DECLINE closes the offer.',
+    'coach.ledger':
+      'Your town’s ledger: ▲ levees, ⛵ boats and ✚ kits it holds — all carried from round ' +
+      'to round, though a flood sinks some boats and kits. ⚡ is political capital, ' +
+      'refilled at the start of every round. 🔬 is research, which unlocks rarer cards.',
 
     // --- Summary / newspaper chrome --------------------------------------
     'summary.next': 'NEXT EDITION  ▶',
