@@ -78,8 +78,10 @@ somewhere with PostgreSQL, and point the game at it by defining, in `index.html`
 The game asks for consent once (first campaign) and is **off unless the player opts in**.
 Consent is revocable from the menu; no personal data is collected — only a browser-generated
 random UUID, in-game decisions (`invest` own-vs-neighbour, `card`, `deal`, `meeting`,
-`favour`, `sharpen`) and per-round outcomes (`round_end`, `campaign_end`), with
-`campaign_index` (a participant's 1st, 2nd, 3rd… campaign) as the longitudinal axis.
+`favour`, `sharpen`), per-round outcomes (`round_end`, `campaign_end`) and use of the
+first-rounds tutorial callouts (`coach`, payload `{step, action}` — how much explanation
+a player needed, a covariate for the behaviour measures), with `campaign_index`
+(a participant's 1st, 2nd, 3rd… campaign) as the longitudinal axis.
 
 Example analyses (psql):
 

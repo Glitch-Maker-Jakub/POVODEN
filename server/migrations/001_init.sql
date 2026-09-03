@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS events (
   campaign_id    UUID         NOT NULL,      -- one per campaign run
   campaign_index INTEGER      NOT NULL CHECK (campaign_index >= 1),
   round          INTEGER,                    -- NULL for campaign-level events
-  type           VARCHAR(24)  NOT NULL,      -- consent|campaign_start|invest|card|deal|meeting|favour|sharpen|round_end|campaign_end
+  type           VARCHAR(24)  NOT NULL,      -- consent|campaign_start|invest|card|deal|meeting|favour|sharpen|round_end|campaign_end|coach
   payload        JSONB        NOT NULL DEFAULT '{}',
   lang           VARCHAR(2)   NOT NULL DEFAULT 'en',
   created_at     TIMESTAMPTZ  NOT NULL DEFAULT now()
