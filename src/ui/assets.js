@@ -44,15 +44,19 @@ export const photoExt = () => (webpSupported ? 'webp' : 'jpg');
 /**
  * '' (1x) or '@2x' for the large backgrounds. The canvas is FIT-scaled into
  * the window, so the art is displayed at most at
- * min(width, height·16/9) × devicePixelRatio physical pixels — @2x only pays
- * for itself when that meaningfully exceeds the 1280×720 design resolution.
+ * min(width, height*16/9) x devicePixelRatio physical pixels. The canvas
+ * backing buffer is 2x the design (2560x1440) and every texture is drawn at
+ * that scale before the FIT downscale, so a 1x image is UPSCALED 2x first and
+ * reads soft as soon as the window is larger than the 1280x720 design. Hence
+ * @2x whenever the effective display exceeds the design width at all - the
+ * 1366x768 laptop class included (this was the June "blur" fix; keep it).
  */
 export function assetVariant(view) {
   const v = view || (typeof window === 'undefined'
     ? { width: DESIGN_W, height: DESIGN_H, dpr: 1 }
     : { width: window.innerWidth, height: window.innerHeight, dpr: window.devicePixelRatio || 1 });
   const displayW = Math.min(v.width, v.height * (DESIGN_W / DESIGN_H)) * (v.dpr || 1);
-  return displayW > DESIGN_W * 1.25 ? '@2x' : '';
+  return displayW > DESIGN_W ? '@2x' : '';
 }
 
 export const NEWS_KEYS = ['calm', 'minor', 'rescue', 'disaster', 'cooperation', 'ruin'];

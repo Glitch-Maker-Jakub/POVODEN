@@ -30,6 +30,27 @@ npm start
 | `TRUST_PROXY` | none | proxy hops to trust for client IPs (`1` behind one reverse proxy); without it a spoofed `x-forwarded-for` cannot bypass rate limits |
 | `SERVE_STATIC` | `true` | `false` = API only (game hosted elsewhere) |
 
+## Go-live checklist (game on GitHub Pages, API on your server)
+
+The one setting that silently breaks everything: **`CORS_ORIGINS`**. Unset, the
+API only accepts same-origin requests, so a game served from
+`https://<org>.github.io` gets every scoreboard and telemetry call rejected by
+the browser - no error is shown to the player, the scoreboard just reports
+itself offline and telemetry queues forever.
+
+1. `cd server && npm ci`
+2. Environment: `DATABASE_URL` (required), `CORS_ORIGINS=https://<org>.github.io`
+   (comma-separate several), `TRUST_PROXY=1` if the API sits behind nginx or a
+   load balancer (otherwise every player shares one rate-limit bucket), `PORT`
+   if not 3000, `SERVE_STATIC=false` only if the game is hosted elsewhere.
+3. `npm run migrate` - safe on a fresh database and on one created with the old
+   `schema.sql` (001 is a no-op there, 002 adds batch tracking). It only fails if
+   an existing `events` row already exceeds the new 2000-character payload cap;
+   check first with `SELECT max(length(payload::text)) FROM events;`.
+4. `npm start`, then open `/api/health` - expect `{"ok":true}`.
+5. In the Pages-hosted `index.html`, uncomment the `window.POVODEN_API` line and
+   point it at `https://<server>/api` (same-origin deployments skip this).
+
 ## Operations
 
 - **Deploy**: `npm ci && npm run migrate && npm start` (migrations are idempotent

@@ -141,11 +141,13 @@ test('board art and newspaper groups stay within their budgets', () => {
 test('small and 1x displays get 1x art; large or high-DPI displays get @2x', () => {
   assert.equal(assetVariant({ width: 1280, height: 720, dpr: 1 }), '');
   assert.equal(assetVariant({ width: 1000, height: 700, dpr: 1 }), '');
-  assert.equal(assetVariant({ width: 1600, height: 900, dpr: 1 }), '', 'FIT keeps this at 1x');
+  assert.equal(assetVariant({ width: 1366, height: 768, dpr: 1 }), '@2x', 'common laptop: art is drawn at 2x onto the backing buffer');
+  assert.equal(assetVariant({ width: 1600, height: 900, dpr: 1 }), '@2x');
   assert.equal(assetVariant({ width: 2560, height: 1440, dpr: 1 }), '@2x');
   assert.equal(assetVariant({ width: 1440, height: 900, dpr: 2 }), '@2x');
   assert.equal(assetVariant({ width: 900, height: 700, dpr: 2 }), '@2x');
-  assert.equal(assetVariant({ width: 700, height: 500, dpr: 2 }), '', 'small phone stays 1x even at DPR 2');
+  assert.equal(assetVariant({ width: 700, height: 500, dpr: 2 }), '@2x', '1400 physical px would upscale 1x art');
+  assert.equal(assetVariant({ width: 640, height: 360, dpr: 2 }), '', 'exactly the design width: 1x is pixel-perfect');
 });
 
 test('the manifest never mixes variants into fixed-size art', () => {

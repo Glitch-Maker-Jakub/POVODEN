@@ -87,6 +87,9 @@ decisions.
 
 ## Scoreboard (optional, PostgreSQL)
 
+> Deploying it for a Pages-hosted game? Follow the **go-live checklist** in
+> `server/README.md` - the `CORS_ORIGINS` setting is easy to miss and fails silently.
+
 A small optional **Node.js + PostgreSQL** service under `server/` provides a public
 scoreboard with **all-time, monthly and weekly** rankings. The game works fully
 without it — the in-game Scoreboard screen simply reports itself offline.
