@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # The game model itself is zero-dependency; the server API tests import
+      # the express app (with a stubbed database), so install server deps.
+      - run: npm ci --prefix server
+      - run: npm test
+      # Static gate on the shipped sources themselves: every .js under src/ and
+      # server/ parses, en/cs stay in key parity, and every t('…') literal
+      # resolves. Cheap, and it catches what the unit tests never load.
+      - run: node tools/selftest.mjs

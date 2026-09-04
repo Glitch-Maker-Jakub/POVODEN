@@ -28,7 +28,67 @@ python -m http.server 8124        # then open http://127.0.0.1:8124
 **On your server:** copy the whole `povoden/` folder into any static web root
 (Apache, nginx, GitHub Pages, itch.io, university web space). Done. No build step.
 
+## Story videos, in-play coach, phones
+
+Three pieces that sit outside the model but ship with the game:
+
+- **Story videos** — `assets/video/{intro,calm,loss}_{en,cs}.mp4`: an *Elbe
+  Herald* reporter interviewing an old riverman who lived through 2002 and
+  2013, reached from the gold **THE INTERVIEW** button on the menu, plus two
+  in-game check-ins (before round 3, and after a first costly flood). A DOM
+  overlay plays them (`src/ui/video.js`), always skippable, with a 1×–2× speed
+  control; if the files are absent the game falls back to the text advisor, so
+  a slim deployment can leave the folder out.
+  Regeneration pipeline in `tools/video/` (stills + voiceover + ffmpeg; build
+  cache and API keys stay gitignored).
+- **In-play coach** — `src/ui/coach.js`: anchored hint bubbles during rounds 1–2
+  that explain what each control *does* — never what is worth doing, since
+  steering the player would corrupt the cooperation measure the campaign
+  records. NEXT / SKIP TIPS, remembered in `localStorage`, replayable with
+  `?coach=1`.
+- **Phones** — `src/ui/mobile.js`: the canvas follows the dynamic viewport, a
+  portrait gate offers one-tap fullscreen + landscape lock, and a fullscreen
+  chip stays available in landscape.
+
+## Tests
+
+The game model — flood physics, economy, cards, diplomacy, whole campaigns —
+runs headless and is covered by characterization tests (Node's built-in test
+runner, zero dependencies, no browser or database needed):
+
+```bash
+npm test
+```
+
+All model randomness flows through an injected RNG; `src/model/rng.js` provides
+a seeded generator, so a campaign replayed with the same seed is identical
+round for round (`tests/helpers/campaign.js`). That reproducibility is the
+safety net the tests check refactors and balance changes against. CI runs the
+same command on every pull request.
+
+A second, cheaper gate checks the shipped sources themselves rather than the
+model: every `.js` under `src/` and `server/` parses, the `en`/`cs` catalogs
+hold exactly the same keys, and every `t('…')` literal resolves.
+
+```bash
+npm run selftest
+```
+
+CI runs both, in that order.
+
+The same machinery powers a headless **balance simulator**: `node
+tools/simulate.mjs` replays thousands of seeded campaigns for every
+municipality under named strategies (selfish, cooperative, rescue-first, …) and
+writes a Markdown report with paired-comparison statistics — see
+`docs/balance/baseline-2026-07.md` for the current baseline and
+`docs/balance/playtest-protocol.md` for the moderated-playtest template it
+pairs with. The simulator only reports; balance changes remain design
+decisions.
+
 ## Scoreboard (optional, PostgreSQL)
+
+> Deploying it for a Pages-hosted game? Follow the **go-live checklist** in
+> `server/README.md` - the `CORS_ORIGINS` setting is easy to miss and fails silently.
 
 A small optional **Node.js + PostgreSQL** service under `server/` provides a public
 scoreboard with **all-time, monthly and weekly** rankings. The game works fully
@@ -38,8 +98,8 @@ without it — the in-game Scoreboard screen simply reports itself offline.
 cd server
 npm install
 psql -c "CREATE DATABASE povoden"
-psql povoden -f schema.sql
 export DATABASE_URL=postgres://user:pass@localhost:5432/povoden   # Windows: set DATABASE_URL=...
+npm run migrate    # versioned, transactional schema migrations
 npm start          # serves BOTH the game and the API on http://localhost:3000
 ```
 
@@ -158,10 +218,17 @@ upstream-commits-first turn order, and balance tuning from real playtests.
 
 ## Assets
 
-Pixel art is generated at build time and committed as static PNG/JPEG under
-`assets/`. To regenerate or restyle, see `tools/README.md`
-(`node tools/gen-assets.mjs` → `python tools/resize-assets.py`). The key lives
-only in the gitignored `tools/.env.local`; it never ships with the game.
+Pixel art is generated at build time: sources live in `assets/src/`, and one
+idempotent pipeline derives everything the game loads (WebP + JPEG twins, 1x
+and `@2x` background variants, pre-keyed transparent town sprites). To
+regenerate or restyle, see `tools/README.md` (`node tools/gen-assets.mjs` →
+`python3 tools/build-assets.py`). The key lives only in the gitignored
+`tools/.env.local`; it never ships with the game.
+
+Images load progressively (`src/ui/assets.js`): the boot screen fetches only
+the menu background, the board art loads when a campaign starts, and the
+newspaper photos arrive in the background during the first preparation phase.
+`npm test` enforces the download and decoded-memory budgets.
 
 ## Debugging
 

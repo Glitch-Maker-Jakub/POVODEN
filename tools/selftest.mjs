@@ -6,9 +6,10 @@
 //
 // Checks, in order:
 //   1. SYNTAX  — every .js/.mjs under src/ and server/ parses.
-//   2. I18N    — the `en` and `cs` tables hold exactly the same key set.
+//   2. I18N    — the `en` and `cs` catalogs (src/i18n/en.js, src/i18n/cs.js)
+//                hold exactly the same key set.
 //   3. KEYS    — every literal key passed to t('…') / t(`…`) anywhere in src/
-//                exists in the `en` table. Template keys that interpolate
+//                exists in the `en` catalog. Template keys that interpolate
 //                (t(`inv.${k}.name`)) are checked by their literal prefix.
 //
 // Exits non-zero and prints the offending files/keys on any failure, so a
@@ -17,7 +18,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join, relative, sep } from 'node:path';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -57,8 +58,9 @@ for (const file of sources) {
 }
 
 // --- 2 & 3. i18n -------------------------------------------------------------
-// i18n.js reads localStorage at load (guarded by try/catch); stub it so the
-// module behaves exactly as it does in a browser with storage available.
+// Anything under src/ is browser code and may read localStorage at load time
+// (i18n.js does, guarded by try/catch); stub it so an imported module behaves
+// exactly as it does in a browser with storage available.
 globalThis.localStorage = {
   _m: new Map(),
   getItem(k) { return this._m.has(k) ? this._m.get(k) : null; },
@@ -67,18 +69,19 @@ globalThis.localStorage = {
 };
 if (typeof globalThis.window === 'undefined') globalThis.window = globalThis;
 
+// The catalogs are one plain default-export module per language; i18n.js only
+// wires them together (const S = { en, cs }), so read the two files directly
+// instead of reaching into a module-private const.
 const I18N = join(ROOT, 'src', 'i18n.js');
+const I18N_DIR = join(ROOT, 'src', 'i18n');
 let tables = null;
 try {
-  // The tables live in a module-private const, so append one test-only export
-  // and import the result from memory. The file on disk is never modified.
-  const src = readFileSync(I18N, 'utf8') + '\nexport const __TABLES__ = S;\n';
-  const url = 'data:text/javascript;base64,' + Buffer.from(src, 'utf8').toString('base64');
-  const mod = await import(url);
-  tables = mod.__TABLES__;
-  if (!tables || !tables.en || !tables.cs) throw new Error('en/cs tables not found');
+  const [en, cs] = await Promise.all(['en', 'cs'].map(async (l) =>
+    (await import(pathToFileURL(join(I18N_DIR, `${l}.js`)).href)).default));
+  if (!en || !cs) throw new Error('en/cs catalogs have no default export');
+  tables = { en, cs };
 } catch (e) {
-  fail('I18N', `could not load ${rel(I18N)}: ${e.message}`);
+  fail('I18N', `could not load the catalogs under ${rel(I18N_DIR)}: ${e.message}`);
 }
 
 let enKeys = new Set();
@@ -97,28 +100,29 @@ if (tables) {
 
 // --- 3. every t('…') key used in the code exists ------------------------------
 // i18n.js itself is skipped: its header comment documents the API with example
-// calls (t('key', vars?)) that are prose, not real lookups.
+// calls (t('key', vars?)) that are prose, not real lookups. The catalogs under
+// src/i18n/ are skipped for the same reason — they are data, not call sites.
 const RE_QUOTED = /(^|[^\w$.])t\(\s*(['"])((?:\\.|(?!\2)[^\\])*)\2/g;
 const RE_TEMPLATE = /(^|[^\w$.])t\(\s*`([^`]*)`/g;
 let checked = 0;
 if (tables) {
   const prefixes = [...enKeys];
   for (const file of walk(join(ROOT, 'src'))) {
-    if (file === I18N) continue;
+    if (file === I18N || file.startsWith(I18N_DIR + sep)) continue;
     const code = readFileSync(file, 'utf8');
     let m;
     RE_QUOTED.lastIndex = 0;
     while ((m = RE_QUOTED.exec(code)) !== null) {
       const key = m[3];
       checked++;
-      if (!enKeys.has(key)) fail('KEYS', `${rel(file)} → t('${key}') is not in the en table`);
+      if (!enKeys.has(key)) fail('KEYS', `${rel(file)} → t('${key}') is not in the en catalog`);
     }
     RE_TEMPLATE.lastIndex = 0;
     while ((m = RE_TEMPLATE.exec(code)) !== null) {
       const raw = m[2];
       checked++;
       if (!raw.includes('${')) {
-        if (!enKeys.has(raw)) fail('KEYS', `${rel(file)} → t(\`${raw}\`) is not in the en table`);
+        if (!enKeys.has(raw)) fail('KEYS', `${rel(file)} → t(\`${raw}\`) is not in the en catalog`);
         continue;
       }
       const prefix = raw.slice(0, raw.indexOf('${'));
