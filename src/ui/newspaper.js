@@ -240,7 +240,10 @@ export function cityStanding(gs) {
   const moodKey = moodScore >= 75 ? 'mood.grateful' : moodScore >= 58 ? 'mood.hopeful'
     : moodScore >= 42 ? 'mood.steady' : moodScore >= 25 ? 'mood.anxious' : 'mood.furious';
 
-  let score = 100 - Math.min(55, regionDamage / 120) - Math.min(st.scoreDeathCap, regionDeaths * st.scoreDeathCoef)
+  // The Central-Government Bailout audit (gs.auditPenalty, €M) counts as regional
+  // damage in the score, exactly as in regionalScore() (src/model/scoring.js).
+  const scoredDamage = regionDamage + (gs.auditPenalty || 0);
+  let score = 100 - Math.min(55, scoredDamage / 120) - Math.min(st.scoreDeathCap, regionDeaths * st.scoreDeathCoef)
     - destroyed * 8 + (avgRel - 50) * 0.2;
   score = Math.max(0, Math.min(100, Math.round(score)));
   const grade = score >= 92 ? 'A+' : score >= 85 ? 'A' : score >= 78 ? 'B'
