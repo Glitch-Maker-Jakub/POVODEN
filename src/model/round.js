@@ -8,7 +8,7 @@
 // =============================================================================
 
 import { BALANCE, SEVERITY, EVENTS, PRODUCERS } from '../data/gameData.js';
-import { drawRegionalSeverity, resolveFlood } from './floodModel.js';
+import { drawRegionalSeverity, severityFromDraw, resolveFlood } from './floodModel.js';
 import { PHASE, initPending, muniById, playerMuni, oceanaLost } from './state.js';
 import { boatsWereSent, betrayalEvents } from './events.js';
 import { resolveProposals, generateProposals } from './diplomacy.js';
@@ -20,7 +20,10 @@ import { shuffle } from './rng.js';
 export function startRoundEnvironment(gs) {
   gs.forecastLevel = 0;
   gs.eventFlags = {};
-  gs.upcomingSeverity = drawRegionalSeverity(gs.rng); // hidden; revealed via forecast
+  // One rng call, exactly as drawRegionalSeverity makes it; the latent draw is
+  // kept for the end-of-campaign record panel.
+  gs.upcomingDraw = gs.rng();
+  gs.upcomingSeverity = severityFromDraw(gs.upcomingDraw); // hidden; revealed via forecast
 
   if (!gs.eventDeck.length) gs.eventDeck = shuffle([...EVENTS], gs.rng);
   let ev = gs.eventDeck.pop();
@@ -110,6 +113,8 @@ export function resolveRound(gs) {
   // The flood was pre-drawn at the start of the round (the forecast hinted at it).
   const severity = gs.upcomingSeverity != null ? gs.upcomingSeverity : drawRegionalSeverity(gs.rng);
   gs.regionalSeverity = severity;
+  // Live seasons (after the calm on-ramp) feed the record-seasons panel.
+  if (gs.round > 2 && gs.upcomingDraw != null) gs.seasonDraws.push(gs.upcomingDraw);
   gs.pending.noToxic = !!gs.eventFlags.noToxic; // Chemical Inspection event
 
   const results = resolveFlood(buildFloodInput(gs), severity, floodEffects(gs));

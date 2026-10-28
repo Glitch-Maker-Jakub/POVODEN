@@ -8,7 +8,7 @@ import { playVideo, videoSeen } from '../ui/video.js';
 import { createCoach, coachDisabled } from '../ui/coach.js';
 import {
   createGameState, PHASE, muniById, playerMuni,
-  purchase, canInvest, resolveRound, advanceRound, regionalScore,
+  purchase, canInvest, resolveRound, advanceRound, regionalScore, recordSeasons,
   playCard, canPlayCard, unlockedTiers,
   holdMeeting, meetingAffordable, isRevealed,
   acceptProposal, declineProposal, relationshipLabel,
@@ -858,7 +858,16 @@ export default class GameScene extends Phaser.Scene {
     row(t('brief.livesOwn'), String(rep.ownDeaths), rep.ownDeaths > 0 ? '#ff9a9a' : '#bfeacb');
     row(t('brief.livesRegion'), String(rep.regionDeaths), rep.regionDeaths > 0 ? '#ffb38a' : '#bfeacb');
     row(t('brief.damageOwn'), rep.ownDamage);
-    row(t('brief.damageRegion'), rep.regionDamage);
+    row(t('brief.damageRegion'), rep.regionDamage, null, true);
+
+    // Teaching panel (harmonic numbers): records seen vs. expected H_n.
+    const rec = recordSeasons(this.gs);
+    if (rec.n > 0) {
+      row(t('brief.records', { n: rec.n }), String(rec.records), '#9fd3ff');
+      row(t('brief.recordsExpected', { n: rec.n }), rec.expected.toFixed(2), '#9fd3ff');
+      const note = add(this.add.text(left, ty, t('brief.recordsNote'), { fontFamily: FONT, fontSize: '12px', color: COL.inkDim, wordWrap: { width: wrap }, lineSpacing: 3 }).setOrigin(0, 0));
+      ty += note.height + 6;
+    }
     ty += 8;
 
     const v = add(this.add.text(cx, ty, t(rep.verdictKey), { fontFamily: FONT, fontSize: '13px', color: '#cde0f5', align: 'center', wordWrap: { width: wrap }, lineSpacing: 4 }).setOrigin(0.5, 0));

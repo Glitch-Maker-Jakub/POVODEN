@@ -366,3 +366,28 @@ test('research: +1 per season with Oceana intact, a slower trickle in quiet seas
   resolveRound(gs);
   assert.equal(gs.research, BALANCE.researchPerSafeOceana + BALANCE.researchPerQuietSeason, 'no research in a big flood without Oceana');
 });
+
+test('record-seasons panel: counts strict records of the live seasons, expected H_n', async () => {
+  const { recordSeasons, harmonic } = await import('../src/model/gameState.js');
+  assert.ok(Math.abs(harmonic(8) - 2.717857) < 1e-6);
+  const gs = newGame();
+  gs.seasonDraws = [0.4, 0.2, 0.7, 0.7, 0.9, 0.1];
+  assert.deepEqual(recordSeasons(gs), { n: 6, records: 3, expected: harmonic(6) });
+  const fresh = newGame(7);
+  let guard = 0;
+  while (fresh.phase !== PHASE.GAMEOVER && guard++ < 20) { resolveRound(fresh); advanceRound(fresh); }
+  assert.equal(recordSeasons(fresh).n, BALANCE.totalRounds - 2, 'one draw per live season');
+});
+
+test('the record panel matches H_n on average (memoryless draws)', async () => {
+  const { recordSeasons, harmonic } = await import('../src/model/gameState.js');
+  let total = 0;
+  const N = 400;
+  for (let s = 1; s <= N; s++) {
+    const gs = createGameState('millington', createSeededRng(s));
+    let guard = 0;
+    while (gs.phase !== PHASE.GAMEOVER && guard++ < 20) { resolveRound(gs); advanceRound(gs); }
+    total += recordSeasons(gs).records;
+  }
+  assert.ok(Math.abs(total / N - harmonic(BALANCE.totalRounds - 2)) < 0.2, `mean records ${total / N}`);
+});
