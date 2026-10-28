@@ -95,7 +95,14 @@ function buildFloodInput(gs) {
  * exactly what the real flood would do given the current preparations.
  */
 export function previewFlood(gs, severity) {
-  return resolveFlood(buildFloodInput(gs), severity, gs.pending);
+  // Same flags as resolveRound (e.g. Chemical Inspection's noToxic), applied to
+  // a copy so the preview never mutates gs.pending.
+  return resolveFlood(buildFloodInput(gs), severity, floodEffects(gs));
+}
+
+/** The this-round flood modifiers, plus the event flags resolveFlood reads. */
+function floodEffects(gs) {
+  return { ...gs.pending, noToxic: !!gs.eventFlags?.noToxic };
 }
 
 export function resolveRound(gs) {
@@ -105,7 +112,7 @@ export function resolveRound(gs) {
   gs.regionalSeverity = severity;
   gs.pending.noToxic = !!gs.eventFlags.noToxic; // Chemical Inspection event
 
-  const results = resolveFlood(buildFloodInput(gs), severity, gs.pending);
+  const results = resolveFlood(buildFloodInput(gs), severity, floodEffects(gs));
   gs.lastResults = results;
 
   let tradersDamaged = false;

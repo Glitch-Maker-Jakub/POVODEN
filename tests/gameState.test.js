@@ -12,6 +12,7 @@ import {
   holdMeeting, meetingAffordable, isRevealed,
   acceptProposal, declineProposal, askFavour, canAskFavour,
   resolveRound, advanceRound, regionalScore, adjustRelationship, initPending,
+  previewFlood,
 } from '../src/model/gameState.js';
 import { createSeededRng } from '../src/model/rng.js';
 import { MUNICIPALITIES, INVESTMENTS, BALANCE, RELATIONSHIP, SEVERITY } from '../src/data/gameData.js';
@@ -338,4 +339,14 @@ test('the regional score aggregates the whole map plus audit penalties', () => {
   assert.equal(score.auditPenalty, 250);
   assert.equal(score.totalDamage, 250, 'audit penalty counts as damage');
   assert.ok(score.avgMorale >= 0 && score.avgMorale <= 100);
+});
+
+test('the planning preview honours Chemical Inspection exactly like the live flood', () => {
+  const gs = newGame();
+  gs.eventFlags.noToxic = true;
+  gs.upcomingSeverity = SEVERITY.MODERATE;
+  const preview = previewFlood(gs, SEVERITY.MODERATE);
+  assert.equal(gs.pending.noToxic, undefined, 'preview must not mutate pending');
+  const live = resolveRound(gs);
+  assert.deepEqual(preview.map((r) => [r.id, r.damage, r.deaths]), live.map((r) => [r.id, r.damage, r.deaths]));
 });
