@@ -86,6 +86,7 @@ export function createGameState(playerMuniId = 'millington', rng = Math.random) 
     favoursAsked: {},          // towns you've already called on this round
     upcomingSeverity: null,    // this round's flood, pre-drawn but only forecast
     forecastLevel: 0,          // how sharp the forecast is (0..maxLevel)
+    forecastU: 0,              // where the truth sits inside the band (drawn per round)
     eventDeck: [],
     currentEvent: null,        // the regional event in play this round
     eventFlags: {},            // per-round flags set by events

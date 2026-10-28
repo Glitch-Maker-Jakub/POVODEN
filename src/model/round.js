@@ -31,14 +31,32 @@ export function startRoundEnvironment(gs) {
   // Gentle on-ramp: the first two seasons stay calm (no damage, no deaths) so the
   // player can learn the systems and prepare before the river turns dangerous.
   if (gs.round <= 2) gs.upcomingSeverity = SEVERITY.NONE;
+
+  // Where the truth sits inside the forecast band: one uniform draw per round,
+  // ALWAYS consumed here (last), whatever the event or forecast level, so the
+  // rng order stays fixed. See docs/architecture/model.md.
+  gs.forecastU = gs.rng();
 }
 
-/** The forecast band shown to the player: tightens around the truth as sharpened. */
+/**
+ * The forecast band shown to the player. Its WIDTH depends only on the forecast
+ * level (BALANCE.forecast.bandWidth: 2 -> 1 -> 0 severity steps), and the true
+ * severity sits at a uniformly random position among the placements that keep
+ * the band inside None..Catastrophic. So the band never encodes the truth: at
+ * a given level every band can come from more than one severity (until the
+ * last paid sharpening makes it exact). The placement draw is gs.forecastU.
+ */
 export function forecastBand(gs) {
   if (oceanaLost(gs)) return { low: 0, high: 4, exact: false, blind: true }; // no data hub → no intel
   const t = gs.upcomingSeverity ?? 0;
-  const w = BALANCE.forecast.maxLevel - gs.forecastLevel; // 2 → 1 → 0
-  return { low: Math.max(0, t - w), high: Math.min(4, t + w), exact: w === 0, blind: false };
+  const widths = BALANCE.forecast.bandWidth;
+  const w = widths[Math.min(gs.forecastLevel, widths.length - 1)];
+  if (w === 0) return { low: t, high: t, exact: true, blind: false };
+  const lowMin = Math.max(SEVERITY.NONE, t - w);
+  const lowMax = Math.min(t, SEVERITY.CATASTROPHIC - w);
+  const u = gs.forecastU ?? 0;
+  const low = lowMin + Math.min(lowMax - lowMin, Math.floor(u * (lowMax - lowMin + 1)));
+  return { low, high: low + w, exact: false, blind: false };
 }
 
 export function canSharpenForecast(gs) {

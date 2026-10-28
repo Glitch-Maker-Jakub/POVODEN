@@ -142,7 +142,7 @@ test('paying to sharpen the forecast narrows the band to the truth', () => {
   const gs = newGame();
   const me = playerMuni(gs);
   const w0 = forecastBand(gs);
-  assert.equal(w0.high - w0.low <= 2 * BALANCE.forecast.maxLevel, true);
+  assert.equal(w0.high - w0.low, BALANCE.forecast.bandWidth[0]);
   const budget = me.budget;
   assert.equal(sharpenForecast(gs), true);
   assert.equal(me.budget, budget - BALANCE.forecast.sharpenCost);
@@ -152,6 +152,33 @@ test('paying to sharpen the forecast narrows the band to the truth', () => {
   assert.equal(band.low, gs.upcomingSeverity);
   assert.equal(band.high, gs.upcomingSeverity);
   assert.equal(canSharpenForecast(gs), false, 'nothing left to sharpen');
+});
+
+test('the forecast band width depends on the level only and never decodes the truth', () => {
+  const gs = newGame();
+  const us = Array.from({ length: 50 }, (_, i) => (i + 0.5) / 50);
+  for (let level = 0; level < BALANCE.forecast.maxLevel; level++) {
+    gs.forecastLevel = level;
+    const widths = new Set();
+    const sourcesByBand = new Map();
+    for (let t = 0; t <= 4; t++) {
+      for (const u of us) {
+        gs.upcomingSeverity = t;
+        gs.forecastU = u;
+        const b = forecastBand(gs);
+        widths.add(b.high - b.low);
+        assert.ok(b.low >= 0 && b.high <= 4, `level ${level}: band out of range`);
+        assert.ok(b.low <= t && t <= b.high, `level ${level}: truth ${t} outside [${b.low},${b.high}]`);
+        const key = `${b.low}-${b.high}`;
+        if (!sourcesByBand.has(key)) sourcesByBand.set(key, new Set());
+        sourcesByBand.get(key).add(t);
+      }
+    }
+    assert.deepEqual([...widths], [BALANCE.forecast.bandWidth[level]], `level ${level}: width must be constant`);
+    for (const [band, sources] of sourcesByBand) {
+      assert.ok(sources.size >= 2, `level ${level}: band ${band} reveals the truth (only from ${[...sources]})`);
+    }
+  }
 });
 
 test('losing Oceana blinds the forecast', () => {

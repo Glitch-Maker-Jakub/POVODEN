@@ -63,7 +63,7 @@ exhausted), `hand` (persists under `handCap`).
 `pending` (all flood modifiers, via `initPending()`), `notifications`,
 `proposals` (regenerated), `favoursAsked`, `scarceBought`,
 `playerContribThisRound`, `scheduledRewards` (paid out then emptied),
-`meetingHeld`, `eventFlags`, `forecastLevel`, `upcomingSeverity`,
+`meetingHeld`, `eventFlags`, `forecastLevel`, `forecastU`, `upcomingSeverity`,
 `currentEvent`, `pc` (recomputed with the cooperation dividend), `munis[].budget`
 (recomputed from base − economic penalty + banked − debt), `banked`, `audited`.
 
@@ -94,3 +94,22 @@ All randomness flows through `gs.rng` (injected in `createGameState`). The
 **order of rng consumption is part of the public contract**: any refactor must
 leave a seeded campaign bit-identical (see `tests/campaign.test.js`; the
 TASK-004 split was verified against 40 pre-refactor golden campaigns).
+
+### rng consumption change, October 2026 (forecast band fix)
+
+Up to v0.1 the forecast band was the true severity ± (2 − level), clipped to
+None..Catastrophic, so each severity produced a distinct band and an attentive
+player could decode the flood for free. Since the VGC 2025 review the band's
+width depends on the forecast level only (`BALANCE.forecast.bandWidth`,
+2 → 1 → 0 steps) and the true severity sits at a uniformly random valid
+position inside it.
+
+The placement is driven by **one extra `gs.rng()` call per round**, made as
+the **last** step of `startRoundEnvironment()` (after the severity draw, the
+event draw and `ev.apply`, and the calm on-ramp override) and stored as
+`gs.forecastU`. It is consumed every round whatever the event or the forecast
+level, and sharpening the forecast consumes no randomness. Every seeded
+campaign recorded before this change therefore diverges from the first
+`advanceRound()` onward (round 1's environment is drawn in `createGameState`,
+so the divergence starts with the next rng call); same seed → identical
+campaign still holds and is checked by `tests/campaign.test.js`.

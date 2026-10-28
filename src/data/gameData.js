@@ -403,7 +403,9 @@ export const BALANCE = {
   // Forecast — readable, bettable uncertainty. The flood is pre-drawn but hidden;
   // the forecast shows a band around it that you can pay to narrow toward the
   // truth. Prepare blind and cheap, or buy certainty and prepare precisely.
-  forecast: { sharpenCost: 10, maxLevel: 2 },
+  // bandWidth[level] = high - low of the band (the truth sits at a uniformly
+  // random position inside it, so the band itself never decodes the truth).
+  forecast: { sharpenCost: 10, maxLevel: 2, bandWidth: [2, 1, 0] },
 
   // Favours — spend the TRUST you've built with an ally to call in help. Turns a
   // passive relationship stat into an active, spendable resource.
