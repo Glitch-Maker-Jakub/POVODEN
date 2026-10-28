@@ -329,6 +329,8 @@ export const BALANCE = {
   cardPcCost: 1,               // political capital to play a card
   coopPcCost: 1,               // political capital to invest in ANOTHER town
   researchPerSafeOceana: 1,    // research budget gained per round Oceana survives
+  researchPerQuietSeason: 0.5, // ...per quiet season once Oceana is lost (the slower trickle)
+  researchQuietMaxSeverity: 1, // a "quiet" season: regional severity at most this
   bailoutScorePenalty: 250,    // €M penalty added to final score by a bailout audit
   tierWeights: { common: 0.6, uncommon: 0.3, rare: 0.1 }, // draw weighting (within unlocked)
 

@@ -148,7 +148,12 @@ export function resolveRound(gs) {
 
   // Research budget grows while Oceana survives (funds rare cards).
   const oceana = gs.munis.find((m) => m.def.trait === 'dataVuln');
+  // After Oceana is lost the region's universities and gauging stations keep a
+  // slower research trickle going, but only in quiet seasons (severity at most
+  // researchQuietMaxSeverity): protecting Oceana unlocks the rare tier sooner
+  // and more surely, losing it no longer locks the rare tier out for good.
   if (oceana && !oceana.destroyed) gs.research += BALANCE.researchPerSafeOceana;
+  else if (severity <= BALANCE.researchQuietMaxSeverity) gs.research += BALANCE.researchPerQuietSeason;
 
   // Funds chain: the economic engine (Trader's) and the tax base (Millington)
   // both cut every town's budget next round when they flood.

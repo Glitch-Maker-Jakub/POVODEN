@@ -350,3 +350,19 @@ test('the planning preview honours Chemical Inspection exactly like the live flo
   const live = resolveRound(gs);
   assert.deepEqual(preview.map((r) => [r.id, r.damage, r.deaths]), live.map((r) => [r.id, r.damage, r.deaths]));
 });
+
+test('research: +1 per season with Oceana intact, a slower trickle in quiet seasons after it is lost', () => {
+  const gs = newGame();
+  gs.upcomingSeverity = SEVERITY.NONE;
+  resolveRound(gs);
+  assert.equal(gs.research, BALANCE.researchPerSafeOceana);
+  advanceRound(gs);
+  muniById(gs, 'oceana').destroyed = true;
+  gs.upcomingSeverity = SEVERITY.MINOR;
+  resolveRound(gs);
+  assert.equal(gs.research, BALANCE.researchPerSafeOceana + BALANCE.researchPerQuietSeason, 'quiet season trickle');
+  advanceRound(gs);
+  gs.upcomingSeverity = SEVERITY.SEVERE;
+  resolveRound(gs);
+  assert.equal(gs.research, BALANCE.researchPerSafeOceana + BALANCE.researchPerQuietSeason, 'no research in a big flood without Oceana');
+});
