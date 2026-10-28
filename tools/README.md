@@ -54,8 +54,8 @@ that manifest drift apart or blow the download/decoded-memory budgets.
 
 ## Model / cost
 
-Uses `google/gemini-2.5-flash-image-preview` (a.k.a. "nano banana") via
-OpenRouter. Each image is a few US cents. Edit the `STYLE` string or individual
+Uses Gemini 2.5 Flash Image via OpenRouter (model id
+`google/gemini-2.5-flash-image`, set as `MODEL` in `gen-assets.mjs`). Each image is a few US cents. Edit the `STYLE` string or individual
 prompts in `gen-assets.mjs` to retune the look — regenerate just that one id
 while iterating to keep spend low.
 

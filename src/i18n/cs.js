@@ -116,7 +116,7 @@ export default {
     'credits.role.riha': 'expertiza v serious games a vývoji her',
     'credits.role.eck': 'herně-designová kritika a směřování k poutavosti',
     'credits.role.grasl': 'pixel-artový zero-build základ webové hry; konzultace ke kódovacím agentům a využití modelů',
-    'credits.agent': 'Implementaci, vyvažování, lokalizaci a ověřování provedl kódovací agent s velkým jazykovým modelem (Anthropic Claude Opus 4.7 / 4.8) pod vedením týmu — veškerá designová autorita zůstala lidskému týmu.',
+    'credits.agent': 'Implementaci, vyvažování, lokalizaci a ověřování provedli kódovací agenti Anthropic Claude (Opus 4.8; Fable 5 a 5.1) pod vedením týmu; veškerá designová autorita zůstala lidskému týmu.',
     'credits.thanks': 'Děkujeme třem nezávislým testerům, jejichž hraní formovalo úvod a tempo hry, a publiku i recenzentům konference Videogame Cultures 2025.',
     'credits.license': 'Svobodný software pod licencí GNU Affero General Public License v3.0 · github.com/Glitch-Maker-Jakub/POVODEN',
 
@@ -126,7 +126,7 @@ export default {
       'POVODEŇ je součástí univerzitního výzkumu spolupráce při zvládání povodní. ' +
       'S vaším souhlasem bude hra zaznamenávat vaše herní rozhodnutí (investice, dohody, ' +
       'setkání) a výsledky kol, abychom mohli zkoumat, jak se hraní mění napříč kampaněmi.\n\n' +
-      'Anonymní už z principu: ve vašem prohlížeči se vytvoří náhodné ID — žádné jméno, ' +
+      'Pseudonymní (náhodné ID, lze vymazat): ve vašem prohlížeči se vytvoří náhodné ID — žádné jméno, ' +
       'žádný e-mail, žádné osobní údaje. Kdykoli to můžete v menu vypnout a pomocí svého ID ' +
       '(zobrazeného v menu) požádat o smazání dat.\n\n' +
       'Můžeme vaše hraní zaznamenávat pro výzkum?',

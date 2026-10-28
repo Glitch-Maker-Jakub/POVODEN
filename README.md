@@ -174,8 +174,8 @@ povoden/
 Working: full 10-round campaign loop, 7 municipalities with traits, the
 target-city **cooperation lever**, AI mayors, the flood draw + Lotka–Volterra
 resolution with downstream coupling, flood animation, per-round and final
-reports, and the **15-card power deck** (§4.3) — three rarity tiers gated by a
-research budget that grows while Oceana is protected. Card effects hook into
+reports, and the **nine-card power deck** (§4.3) — three rarity tiers of three
+cards, gated by a research budget that grows fastest while Oceana is protected. Card effects hook into
 preparation (budget/morale/levees), flood resolution (temporary levees,
 severity redirection, boat pooling, evacuation), and across rounds (goodwill,
 audits, debt, insurance). See `src/data/gameData.js` (`CARDS`) and
@@ -199,13 +199,16 @@ Also working:
 - **Invisible neighbours + Regional Meeting.** Each mayor's exact plan (levees,
   boats, reserves) is *hidden* until you convene a Regional Meeting (§15) — which
   reveals everyone for the round. Information is itself a cooperative good.
-- **Severity-graded lethality.** Not every flood is a catastrophe: minor floods
-  are a nuisance (a handful of casualties region-wide), while severe and
-  catastrophic events are genuinely deadly. See `lethalityBySeverity` in
-  `gameData.js`.
+- **Severity-graded lethality, on a realistic scale.** Calibrated to the order
+  of magnitude of the Czech floods of 2002 (17 dead) and 2013 (about 15 dead):
+  one unprepared season kills about 0 people region-wide at Minor, a few at
+  Moderate, tens at Severe and up to low hundreds at Catastrophic; a few boats
+  and life kits per town bring even a catastrophic season down to single
+  digits. See `lv` in `gameData.js` and `docs/balance/baseline-2026-10.md`.
 - **Pixel art (generated).** Flooded-town title background, a portrait for each
-  of the seven municipalities, and water/flood tiles — produced via OpenRouter
-  (`google/gemini-2.5-flash-image`) and downscaled (`tools/`, total < 1 MB).
+  of the seven municipalities, and water/flood tiles — generated with Gemini 2.5
+  Flash Image via OpenRouter (`google/gemini-2.5-flash-image`), curated and
+  downscaled (`tools/`, total < 1 MB).
 
 Also done: **town sprites on the river map** (backgrounds keyed transparent), a
 **flood-wave animation** (the crest travels headwaters→estuary with camera
@@ -245,9 +248,10 @@ Social and Economic Studies.
 
 Team: **Jakub Binter, Hermann Prossinger, Martin Stachoň, Natalie Čermáková,
 Lenka Slavíková, Daniel Říha, Eduard Eck, Tomáš Grasl.** Implementation, balancing,
-localization and verification were carried out by a large-language-model coding
-agent (Anthropic Claude) under the team's direction; all design authority rested
-with the human team. Full credits: the **Credits** page in the game.
+localization and verification were carried out by Anthropic Claude coding agents
+(Opus 4.8; Fable 5 and 5.1) under the team's direction; all design authority rested
+with the human team. Pixel art: Gemini 2.5 Flash Image via OpenRouter, curated by
+the team. Full credits: the **Credits** page in the game.
 
 ## License
 

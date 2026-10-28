@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "POVODEŇ (Flood): a pixel-art serious game for inter-municipal flood cooperation"
+version: 1.0-vgc2025
+license: AGPL-3.0-or-later
+repository-code: "https://github.com/Glitch-Maker-Jakub/POVODEN"
+url: "https://glitch-maker-jakub.github.io/POVODEN/"
+authors:
+  - family-names: Binter
+    given-names: Jakub
+  - family-names: Prossinger
+    given-names: Hermann
+  - family-names: Stachoň
+    given-names: Martin
+  - family-names: Čermáková
+    given-names: Natalie
+  - family-names: Slavíková
+    given-names: Lenka
+  - family-names: Říha
+    given-names: Daniel
+  - family-names: Eck
+    given-names: Eduard
+  - family-names: Grasl
+    given-names: Tomáš
