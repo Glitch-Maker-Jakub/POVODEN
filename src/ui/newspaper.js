@@ -6,11 +6,17 @@
 // Bilingual: English and Czech share the same numbers but build their own prose.
 // =============================================================================
 
-import { MAYORS, EXPOSURE, RELATIONSHIP } from '../data/gameData.js';
+import { MAYORS, EXPOSURE, RELATIONSHIP, BALANCE } from '../data/gameData.js';
 import { boatHelpEvents, betrayalEvents } from '../model/gameState.js';
 import { getLang, t, fmtEuro, plural } from '../i18n.js';
 
-const euro = fmtEuro;   // shared formatter — HUD and newspaper print money identically
+const euro = fmtEuro;
+
+// Death thresholds for the press, on the realistic casualty scale (Oct 2026):
+// a season with 10+ dead region-wide is front-page DISASTER (cf. 17 dead in the
+// 2002 Czech floods); a town that lost 3+ over a campaign gets a post-mortem tip.
+const HEADLINE_DISASTER_DEATHS = 10;
+const DEADLY_TOWN_DEATHS = 3;   // shared formatter — HUD and newspaper print money identically
 
 function pick(rng, arr) { return arr[Math.floor(rng() * arr.length)]; }
 
@@ -58,7 +64,7 @@ export function writeArticle(gs) {
       headline = pick(rng, ['ŘEKA STOUPLA, OBCE ODOLALY', 'MOKRÁ SEZÓNA, ALE HRÁZE VYDRŽELY', 'MÍRNÉ ZÁPLAVY, ŽÁDNÉ OBĚTI']);
     } else if (totalDeaths === 0) {
       headline = pick(rng, ['NÁKLADNÁ POVODEŇ — ALE BEZ JEDINÉ OBĚTI', `${euro(totalDamage)} ŠKOD, NULA OBĚTÍ`, 'VODA VZALA ULICE, NE LIDI']);
-    } else if (totalDeaths < 40) {
+    } else if (totalDeaths < HEADLINE_DISASTER_DEATHS) {
       headline = `POVODEŇ SI VYŽÁDALA ${totalDeaths} ${cz(totalDeaths, 'OBĚŤ', 'OBĚTI', 'OBĚTÍ')}; NEJHŮŘE ZASAŽEN ${(worstMuni?.def.name || 'ÚDOLÍ').toUpperCase()}`;
     } else {
       headline = pick(rng, [`KATASTROFA NA LABI: ${totalDeaths} MRTVÝCH`, `KATASTROFA — ${totalDeaths} ŽIVOTŮ, ${euro(totalDamage)} PRYČ`]);
@@ -105,7 +111,7 @@ export function writeArticle(gs) {
       headline = pick(rng, ['RIVER SWELLS, TOWNS HOLD FIRM', 'A WET SEASON, BUT THE DEFENCES HELD', 'MINOR FLOODING, NO LIVES LOST']);
     } else if (totalDeaths === 0) {
       headline = pick(rng, ['COSTLY FLOOD — BUT NOT A SINGLE LIFE LOST', `${euro(totalDamage)} IN DAMAGE, ZERO DEATHS`, 'THE WATER TOOK THE STREETS, NOT THE PEOPLE']);
-    } else if (totalDeaths < 40) {
+    } else if (totalDeaths < HEADLINE_DISASTER_DEATHS) {
       headline = `FLOOD CLAIMS ${totalDeaths} AS ${(worstMuni?.def.name || 'THE VALLEY').toUpperCase()} BEARS THE BRUNT`;
     } else {
       headline = pick(rng, [`DISASTER ON THE ELBE: ${totalDeaths} DEAD`, `CATASTROPHE — ${totalDeaths} LIVES, ${euro(totalDamage)} GONE`]);
@@ -161,7 +167,7 @@ export function postMortem(gs) {
   const fp = munis.find((m) => m.def.trait === 'cumulative');
   const oceana = munis.find((m) => m.def.trait === 'dataVuln');
   const greenhaven = munis.find((m) => m.def.trait === 'absorptive');
-  const deadly = munis.filter((m) => m.deathsTotal > 40);
+  const deadly = munis.filter((m) => m.deathsTotal >= DEADLY_TOWN_DEATHS);
 
   const joinNames = (arr, andW) => arr.map((m) => m.def.name).join(', ').replace(/, ([^,]*)$/, ` ${andW} $1`);
 
@@ -222,16 +228,19 @@ export function cityStanding(gs) {
   // the ballot directly — voters forgive flooded streets if their mayor kept them
   // safe and hopeful. (Old formula penalised lifetime damage so hard that approval
   // could only ever fall — you could never climb back above ~30%.)
-  let reElection = 20 + ownMorale * 0.6 - Math.min(30, ownDeaths * 0.15) + (avgRel - 50) * 0.2;
+  // Death coefficients live in BALANCE.standing (rescaled Oct 2026 with the
+  // realistic casualty regime: one own death now weighs what ~20 did before).
+  const st = BALANCE.standing;
+  let reElection = 20 + ownMorale * 0.6 - Math.min(st.reDeathCap, ownDeaths * st.reDeathCoef) + (avgRel - 50) * 0.2;
   reElection = Math.max(2, Math.min(98, Math.round(reElection)));
 
   // Public mood tracks morale closely, dampened by lives lost — so mood and the
   // re-election number stay consistent (no "grateful town, doomed mayor").
-  const moodScore = ownMorale - Math.min(30, ownDeaths * 0.12);
+  const moodScore = ownMorale - Math.min(30, ownDeaths * st.moodDeathCoef);
   const moodKey = moodScore >= 75 ? 'mood.grateful' : moodScore >= 58 ? 'mood.hopeful'
     : moodScore >= 42 ? 'mood.steady' : moodScore >= 25 ? 'mood.anxious' : 'mood.furious';
 
-  let score = 100 - Math.min(55, regionDamage / 120) - Math.min(35, regionDeaths * 0.05)
+  let score = 100 - Math.min(55, regionDamage / 120) - Math.min(st.scoreDeathCap, regionDeaths * st.scoreDeathCoef)
     - destroyed * 8 + (avgRel - 50) * 0.2;
   score = Math.max(0, Math.min(100, Math.round(score)));
   const grade = score >= 92 ? 'A+' : score >= 85 ? 'A' : score >= 78 ? 'B'

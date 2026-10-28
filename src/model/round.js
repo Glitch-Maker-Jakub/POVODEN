@@ -99,7 +99,7 @@ export function resolveRound(gs) {
     m.damageTotal += r.damage;
 
     const deathFrac = r.deaths / m.population;
-    if (r.deaths > 0) m.morale = Math.max(0, m.morale - Math.round(deathFrac * 600));
+    if (r.deaths > 0) m.morale = Math.max(0, m.morale - Math.round(deathFrac * BALANCE.deathMoraleFactor));
     else if (r.effSeverity <= SEVERITY.MINOR) m.morale = Math.min(100, m.morale + 4);
 
     // Equipment attrition — floods sink/wreck a fraction of the persistent fleet.

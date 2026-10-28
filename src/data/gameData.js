@@ -366,18 +366,37 @@ export const BALANCE = {
     // Fraction of population physically in harm's way, by effective severity.
     atRiskBySeverity: [0.0, 0.02, 0.10, 0.30, 0.60],
     // Of those at risk, the share in genuine MORTAL danger. Kept low: in a modern
-    // context floods are an economic disaster, not a massacre.
-    lethalityBySeverity: [0.0, 0.012, 0.05, 0.16, 0.38],
+    // context floods are an economic disaster, not a massacre. Calibrated (Oct
+    // 2026, VGC review) to the order of magnitude of the Czech floods of 2002
+    // (17 dead) and 2013 (about 15 dead): region-wide, one season, no player
+    // preparation, morale 60 -> Minor 0, Moderate ~6, Severe ~39, Catastrophic
+    // ~142 (~284 if every town's morale has collapsed). A few boats and kits
+    // per town bring a catastrophic season down to single digits / low tens.
+    lethalityBySeverity: [0.0, 0.0005, 0.0008, 0.002, 0.005],
     // Baseline emergency response (early warning, fire/rescue) that saves people
     // even with zero player investment — BUT it is scaled by town morale. A town
     // in chaos (morale ~0) loses this safety net, so a reckless player who lets a
     // town collapse AND skips rescue can still cause mass casualties.
-    baselineRescueFrac: 0.72,
+    baselineRescueFrac: 0.5,   // was 0.72; caps the morale-collapse multiplier at 2x
     boatAmplitude: 0.16,     // share rescuable per boat, at the profile peak
     kitAmplitude: 0.07,      // share sustainable per kit, at the profile peak
     profileSpread: 6.0,      // Gaussian-in-time spread of rescue effort
     noiseAmplitude: 0.12,    // how strongly zeta-gap noise perturbs effectiveness
   },
+
+  // Morale lost by a town per unit of per-capita deaths in one flood
+  // (morale -= round(deaths / population * deathMoraleFactor)). Rescaled with
+  // the casualty regime so a catastrophic unprepared season still costs a
+  // dense town ~35 morale points.
+  deathMoraleFactor: 25000,
+
+  // Standing formulas (src/ui/newspaper.js cityStanding), rescaled with the
+  // casualty regime so the parochial / regional tension still opens:
+  //   reElection = 20 + 0.6*morale - min(reDeathCap, reDeathCoef*ownDeaths) + 0.2*(avgRel-50)
+  //   mood       = morale - min(30, moodDeathCoef*ownDeaths)
+  //   score      = 100 - min(55, regionDamage/120) - min(35, scoreDeathCoef*regionDeaths)
+  //                - 8*destroyed + 0.2*(avgRel-50)
+  standing: { reDeathCoef: 3, reDeathCap: 30, moodDeathCoef: 2.5, scoreDeathCoef: 0.5, scoreDeathCap: 35 },
 
   meetingCost: 15,           // budget cost to convene a Regional Meeting (reveal neighbours)
 

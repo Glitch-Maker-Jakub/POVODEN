@@ -699,7 +699,7 @@ export default class GameScene extends Phaser.Scene {
       }, gs.round);
       flushTelemetry();
     }
-    if (last.totalDeaths > 100 || last.totalDamage > 1500) sfx.bad(); else sfx.good();
+    if (last.totalDeaths > 10 || last.totalDamage > 1500) sfx.bad(); else sfx.good();
     this.modalOpen();   // after the video early-return, so the count cannot drift
 
     const art = writeArticle(gs);
@@ -901,9 +901,9 @@ export default class GameScene extends Phaser.Scene {
   }
 
   verdict(sc) {
-    if (sc.totalDamage < 3000 && sc.destroyed === 0 && sc.totalDeaths < 80)
+    if (sc.totalDamage < 3000 && sc.destroyed === 0 && sc.totalDeaths < 3)
       return 'A cooperative region. Shared boats and well-placed levees kept the damage low and the estuary safe — the outcome a cost–benefit report can describe but never make you feel.';
-    if (sc.totalDamage < 8000 && sc.totalDeaths < 1000)
+    if (sc.totalDamage < 8000 && sc.totalDeaths < 30)
       return 'Mixed. Some towns walled themselves off and pushed water downstream. The region survived, but the bill — and the toll — fell unevenly.';
     return 'Every mayor optimised their own town. The water went somewhere — downstream — and the damage piled up. This is the status quo the 2002 and 2013 floods exposed.';
   }

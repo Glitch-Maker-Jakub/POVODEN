@@ -160,3 +160,31 @@ test('flood resolution is fully deterministic (no hidden randomness)', () => {
     resolveFlood(input, SEVERITY.SEVERE),
   );
 });
+
+// --- Casualty regime (VGC 2025 review, decision 2) -----------------------------
+// Region-wide deaths in ONE season must sit in the order of magnitude of real
+// Czech floods (2002: 17 dead; 2013: about 15 dead).
+
+const regionDeaths = (sev, invest = {}, morale = 60) =>
+  resolveFlood(towns(Object.fromEntries(MUNICIPALITIES.map((d) => [d.id, invest])),
+    Object.fromEntries(MUNICIPALITIES.map((d) => [d.id, morale]))), sev)
+    .reduce((a, r) => a + r.deaths, 0);
+
+test('unprepared casualty regime: minor 0-1, moderate a few, severe tens, catastrophic tens to low hundreds', () => {
+  assert.ok(regionDeaths(SEVERITY.MINOR) <= 1, `minor: ${regionDeaths(SEVERITY.MINOR)}`);
+  const mod = regionDeaths(SEVERITY.MODERATE);
+  assert.ok(mod >= 1 && mod <= 9, `moderate: ${mod}`);
+  const sev = regionDeaths(SEVERITY.SEVERE);
+  assert.ok(sev >= 10 && sev < 100, `severe: ${sev}`);
+  const cat = regionDeaths(SEVERITY.CATASTROPHIC);
+  assert.ok(cat >= 50 && cat <= 300, `catastrophic: ${cat}`);
+  const chaos = regionDeaths(SEVERITY.CATASTROPHIC, {}, 0);
+  assert.ok(chaos > cat && chaos <= 300, `catastrophic with collapsed morale: ${chaos}`);
+});
+
+test('good preparation brings a catastrophic season down to single digits or low tens', () => {
+  const light = regionDeaths(SEVERITY.CATASTROPHIC, { boat: 1, kit: 1 });
+  const good = regionDeaths(SEVERITY.CATASTROPHIC, { boat: 3, kit: 2 }, 80);
+  assert.ok(light < 30, `1 boat + 1 kit per town: ${light}`);
+  assert.ok(good < 10, `3 boats + 2 kits per town: ${good}`);
+});
