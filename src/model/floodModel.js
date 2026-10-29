@@ -23,8 +23,17 @@ import { makeZetaNoise } from './zetaNoise.js';
  * cannot "learn the streak" — last round tells you nothing about this one.
  */
 export function drawRegionalSeverity(rng = Math.random) {
+  return severityFromDraw(rng());
+}
+
+/**
+ * Map one uniform draw u in [0, 1) onto the severity ladder. u is the season's
+ * latent "peak discharge" percentile: severity is monotone in u, and the u of
+ * successive seasons are i.i.d., which is what the end-of-campaign record
+ * panel (harmonic numbers) counts on.
+ */
+export function severityFromDraw(u) {
   const w = BALANCE.severityWeights;
-  const u = rng();
   let acc = 0;
   for (let s = SEVERITY.NONE; s <= SEVERITY.CATASTROPHIC; s++) {
     acc += w[s];

@@ -37,7 +37,7 @@ export {
   forecastBand, canSharpenForecast, sharpenForecast,
   previewFlood, resolveRound, advanceRound,
 } from './round.js';
-export { regionalScore } from './scoring.js';
+export { regionalScore, recordSeasons, harmonic } from './scoring.js';
 
 export function createGameState(playerMuniId = 'millington', rng = Math.random) {
   const munis = MUNICIPALITIES.map((def) => ({
@@ -85,7 +85,10 @@ export function createGameState(playerMuniId = 'millington', rng = Math.random) 
     scheduledRewards: [],      // deal payoffs applied next round
     favoursAsked: {},          // towns you've already called on this round
     upcomingSeverity: null,    // this round's flood, pre-drawn but only forecast
+    upcomingDraw: null,        // its latent uniform draw (peak-discharge percentile)
+    seasonDraws: [],           // latent draws of the live seasons played (record panel)
     forecastLevel: 0,          // how sharp the forecast is (0..maxLevel)
+    forecastU: 0,              // where the truth sits inside the band (drawn per round)
     eventDeck: [],
     currentEvent: null,        // the regional event in play this round
     eventFlags: {},            // per-round flags set by events

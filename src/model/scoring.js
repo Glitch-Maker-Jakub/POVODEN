@@ -5,6 +5,28 @@
 // audit penalty), towns lost and average morale across all seven seats.
 // =============================================================================
 
+/** H_n = 1 + 1/2 + ... + 1/n, the expected number of records in n i.i.d. draws. */
+export function harmonic(n) {
+  let h = 0;
+  for (let k = 1; k <= n; k++) h += 1 / k;
+  return h;
+}
+
+/**
+ * Record-breaking seasons the player saw: live seasons whose latent flood draw
+ * (peak discharge) beat every live season before it. For a memoryless river the
+ * expected count over n seasons is the harmonic number H_n (Section 3.1).
+ */
+export function recordSeasons(gs) {
+  const draws = gs.seasonDraws || [];
+  let best = -Infinity;
+  let records = 0;
+  for (const u of draws) {
+    if (u > best) { records += 1; best = u; }
+  }
+  return { n: draws.length, records, expected: harmonic(draws.length) };
+}
+
 export function regionalScore(gs) {
   const totalDeaths = gs.munis.reduce((a, m) => a + m.deathsTotal, 0);
   const totalSaved = gs.munis.reduce((a, m) => a + m.savedTotal, 0);

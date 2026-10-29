@@ -116,7 +116,7 @@ export default {
     'credits.role.riha': 'serious-games and game-development expertise',
     'credits.role.eck': 'game-design critique and engagement direction',
     'credits.role.grasl': 'pixel-art zero-build browser-game base; coding-agent and model-use consultations',
-    'credits.agent': 'Implementation, balancing, localization and verification were carried out by a large-language-model coding agent (Anthropic Claude Opus 4.7 / 4.8) under the team’s direction — all design authority rested with the human team.',
+    'credits.agent': 'Implementation, balancing, localization and verification were carried out by Anthropic Claude coding agents (Opus 4.8; Fable 5 and 5.1) under the team’s direction; all design authority rested with the human team.',
     'credits.thanks': 'With thanks to the three independent play testers whose sessions shaped the game’s onboarding and pacing, and to the audiences and reviewers of Videogame Cultures 2025.',
     'credits.license': 'Free software under the GNU Affero General Public License v3.0 · github.com/Glitch-Maker-Jakub/POVODEN',
 
@@ -126,7 +126,7 @@ export default {
       'POVODEŇ is part of a university research project on cooperation in flood management. ' +
       'With your consent, the game will record your in-game decisions (investments, deals, ' +
       'meetings) and round outcomes, so we can study how play changes across campaigns.\n\n' +
-      'Anonymous by design: a random ID is created in your browser — no name, no e-mail, ' +
+      'Pseudonymous (random ID, erasable): a random ID is created in your browser — no name, no e-mail, ' +
       'no personal data. You can turn this off at any time on the menu, and you can request ' +
       'deletion of your data using your ID (shown on the menu).\n\n' +
       'May we record your gameplay for research?',
@@ -297,6 +297,9 @@ export default {
     'brief.mood': 'Public mood',
     'brief.livesOwn': 'Lives lost — your town',
     'brief.livesRegion': 'Lives lost — whole region',
+    'brief.records': 'Record seasons you saw (of {n} live seasons)',
+    'brief.recordsExpected': 'Expected for a river with no memory (H_{n})',
+    'brief.recordsNote': 'A record is a season whose peak flow beat every season before it. Each season is drawn independently of the last, so records thin out like 1 + 1/2 + … + 1/n: the past says nothing about next year.',
     'brief.damageOwn': 'Damage — your town',
     'brief.damageRegion': 'Damage — whole region',
     'brief.again': '↻  PLAY AGAIN',

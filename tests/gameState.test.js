@@ -12,6 +12,7 @@ import {
   holdMeeting, meetingAffordable, isRevealed,
   acceptProposal, declineProposal, askFavour, canAskFavour,
   resolveRound, advanceRound, regionalScore, adjustRelationship, initPending,
+  previewFlood,
 } from '../src/model/gameState.js';
 import { createSeededRng } from '../src/model/rng.js';
 import { MUNICIPALITIES, INVESTMENTS, BALANCE, RELATIONSHIP, SEVERITY } from '../src/data/gameData.js';
@@ -142,7 +143,7 @@ test('paying to sharpen the forecast narrows the band to the truth', () => {
   const gs = newGame();
   const me = playerMuni(gs);
   const w0 = forecastBand(gs);
-  assert.equal(w0.high - w0.low <= 2 * BALANCE.forecast.maxLevel, true);
+  assert.equal(w0.high - w0.low, BALANCE.forecast.bandWidth[0]);
   const budget = me.budget;
   assert.equal(sharpenForecast(gs), true);
   assert.equal(me.budget, budget - BALANCE.forecast.sharpenCost);
@@ -152,6 +153,33 @@ test('paying to sharpen the forecast narrows the band to the truth', () => {
   assert.equal(band.low, gs.upcomingSeverity);
   assert.equal(band.high, gs.upcomingSeverity);
   assert.equal(canSharpenForecast(gs), false, 'nothing left to sharpen');
+});
+
+test('the forecast band width depends on the level only and never decodes the truth', () => {
+  const gs = newGame();
+  const us = Array.from({ length: 50 }, (_, i) => (i + 0.5) / 50);
+  for (let level = 0; level < BALANCE.forecast.maxLevel; level++) {
+    gs.forecastLevel = level;
+    const widths = new Set();
+    const sourcesByBand = new Map();
+    for (let t = 0; t <= 4; t++) {
+      for (const u of us) {
+        gs.upcomingSeverity = t;
+        gs.forecastU = u;
+        const b = forecastBand(gs);
+        widths.add(b.high - b.low);
+        assert.ok(b.low >= 0 && b.high <= 4, `level ${level}: band out of range`);
+        assert.ok(b.low <= t && t <= b.high, `level ${level}: truth ${t} outside [${b.low},${b.high}]`);
+        const key = `${b.low}-${b.high}`;
+        if (!sourcesByBand.has(key)) sourcesByBand.set(key, new Set());
+        sourcesByBand.get(key).add(t);
+      }
+    }
+    assert.deepEqual([...widths], [BALANCE.forecast.bandWidth[level]], `level ${level}: width must be constant`);
+    for (const [band, sources] of sourcesByBand) {
+      assert.ok(sources.size >= 2, `level ${level}: band ${band} reveals the truth (only from ${[...sources]})`);
+    }
+  }
 });
 
 test('losing Oceana blinds the forecast', () => {
@@ -311,4 +339,55 @@ test('the regional score aggregates the whole map plus audit penalties', () => {
   assert.equal(score.auditPenalty, 250);
   assert.equal(score.totalDamage, 250, 'audit penalty counts as damage');
   assert.ok(score.avgMorale >= 0 && score.avgMorale <= 100);
+});
+
+test('the planning preview honours Chemical Inspection exactly like the live flood', () => {
+  const gs = newGame();
+  gs.eventFlags.noToxic = true;
+  gs.upcomingSeverity = SEVERITY.MODERATE;
+  const preview = previewFlood(gs, SEVERITY.MODERATE);
+  assert.equal(gs.pending.noToxic, undefined, 'preview must not mutate pending');
+  const live = resolveRound(gs);
+  assert.deepEqual(preview.map((r) => [r.id, r.damage, r.deaths]), live.map((r) => [r.id, r.damage, r.deaths]));
+});
+
+test('research: +1 per season with Oceana intact, a slower trickle in quiet seasons after it is lost', () => {
+  const gs = newGame();
+  gs.upcomingSeverity = SEVERITY.NONE;
+  resolveRound(gs);
+  assert.equal(gs.research, BALANCE.researchPerSafeOceana);
+  advanceRound(gs);
+  muniById(gs, 'oceana').destroyed = true;
+  gs.upcomingSeverity = SEVERITY.MINOR;
+  resolveRound(gs);
+  assert.equal(gs.research, BALANCE.researchPerSafeOceana + BALANCE.researchPerQuietSeason, 'quiet season trickle');
+  advanceRound(gs);
+  gs.upcomingSeverity = SEVERITY.SEVERE;
+  resolveRound(gs);
+  assert.equal(gs.research, BALANCE.researchPerSafeOceana + BALANCE.researchPerQuietSeason, 'no research in a big flood without Oceana');
+});
+
+test('record-seasons panel: counts strict records of the live seasons, expected H_n', async () => {
+  const { recordSeasons, harmonic } = await import('../src/model/gameState.js');
+  assert.ok(Math.abs(harmonic(8) - 2.717857) < 1e-6);
+  const gs = newGame();
+  gs.seasonDraws = [0.4, 0.2, 0.7, 0.7, 0.9, 0.1];
+  assert.deepEqual(recordSeasons(gs), { n: 6, records: 3, expected: harmonic(6) });
+  const fresh = newGame(7);
+  let guard = 0;
+  while (fresh.phase !== PHASE.GAMEOVER && guard++ < 20) { resolveRound(fresh); advanceRound(fresh); }
+  assert.equal(recordSeasons(fresh).n, BALANCE.totalRounds - 2, 'one draw per live season');
+});
+
+test('the record panel matches H_n on average (memoryless draws)', async () => {
+  const { recordSeasons, harmonic } = await import('../src/model/gameState.js');
+  let total = 0;
+  const N = 400;
+  for (let s = 1; s <= N; s++) {
+    const gs = createGameState('millington', createSeededRng(s));
+    let guard = 0;
+    while (gs.phase !== PHASE.GAMEOVER && guard++ < 20) { resolveRound(gs); advanceRound(gs); }
+    total += recordSeasons(gs).records;
+  }
+  assert.ok(Math.abs(total / N - harmonic(BALANCE.totalRounds - 2)) < 0.2, `mean records ${total / N}`);
 });

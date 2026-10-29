@@ -23,12 +23,14 @@ import {
   createGameState, PHASE, playerMuni, muniById,
   purchase, canInvest, resolveRound, advanceRound, regionalScore,
   acceptProposal, declineProposal, canPlayCard, playCard,
+  holdMeeting, meetingAffordable, askFavour, canAskFavour,
 } from '../src/model/gameState.js';
 import { runAllAI } from '../src/ai/mayorAI.js';
+import { cityStanding } from '../src/ui/newspaper.js';
 import { createSeededRng } from '../src/model/rng.js';
-import { drawRegionalSeverity } from '../src/model/floodModel.js';
+import { drawRegionalSeverity, resolveFlood } from '../src/model/floodModel.js';
 import {
-  MUNICIPALITIES, BALANCE, CARDS, CARD_BY_ID, SEVERITY_LABELS,
+  MUNICIPALITIES, BALANCE, CARDS, CARD_BY_ID, SEVERITY_LABELS, TIER_UNLOCK, EXPOSURE,
 } from '../src/data/gameData.js';
 
 // --- CLI ----------------------------------------------------------------------
@@ -72,24 +74,100 @@ function selfish(gs) {
   }
 }
 
-/** Protect yourself modestly, honour deals, arm the neighbour downstream. */
-function cooperative(gs, stats, skip = new Set()) {
+// Towns where a levee helps the REGION, not only the town behind it (the model's
+// own answer, Section 4.4): the data hub (Oceana: an inundation destroys the
+// region's forecasts and research) and the toxic site (Bayview: a spill at
+// Moderate+ contaminates everyone downstream). Both sit near the estuary, so
+// their deflection reaches few towns. Dense Millington is deliberately NOT in
+// the list: its levee shields 32,000 people but deflects onto five towns.
+const REGIONAL_LEVEE_TOWNS = new Set(['oceana', 'bayview']);
+
+/** Neighbours ordered by unmet rescue need (people per boat-equivalent). */
+function neediest(gs) {
+  return gs.munis
+    .filter((m) => m.id !== gs.playerMuniId)
+    .map((m) => ({ m, need: m.population / (1 + m.stock.boat + 0.5 * m.stock.kit) * (m.destroyed ? 2 : 1) }))
+    .sort((a, b) => b.need - a.need)
+    .map((x) => x.m);
+}
+
+/** Cards a cooperator plays whenever drawn (pact first, then the life-savers). */
+function playCooperativeCards(gs, stats) {
+  const plays = [
+    ['pact', null], ['sandbag', 'oceana'], ['drill', null], ['evac', null], ['grant', null],
+  ];
+  for (const [id, target] of plays) {
+    if (gs.pc <= 1) break; // keep capital for funding neighbours
+    if (canPlayCard(gs, id, target) && playCard(gs, id, target)) stats.cardPlays += 1;
+  }
+}
+
+/**
+ * The cooperative posture the chapter argues for, as a script:
+ *   - honour deals that ask for boats, or for a levee where a levee helps the
+ *     region; decline the rest openly instead of breaking them;
+ *   - hold the Regional Meeting every season;
+ *   - levees only at the regional-levee towns (own town included only if it is one);
+ *   - fund the neediest neighbours' boats and kits with all spare capital;
+ *   - keep a modest own rescue fleet (3 boats, 2 kits).
+ * `ownBoats/ownKits` let the cooperative-rescue variant arm its own town harder.
+ */
+function cooperative(gs, stats, skip = new Set(), { ownBoats = 3, ownKits = 2, levees = true, cards = true } = {}) {
+  const me = playerMuni(gs);
+  for (const p of gs.proposals) {
+    const fits = p.askInv === 'boat' || (levees && REGIONAL_LEVEE_TOWNS.has(p.from));
+    if (p.accepted === null && fits && !skip.has(p.askInv)) acceptProposal(gs, p.id);
+    else if (p.accepted === null) declineProposal(gs, p.id);
+    if (p.accepted && buy(gs, p.from, p.askInv)) stats.coopActions += 1;
+  }
+  if (meetingAffordable(gs)) holdMeeting(gs);
+  if (cards) playCooperativeCards(gs, stats);
+  if (levees && !skip.has('levee')) {
+    for (const id of REGIONAL_LEVEE_TOWNS) {
+      const t = muniById(gs, id);
+      if (t.leveesBuilt < 1 && buy(gs, id, 'levee') && id !== me.id) stats.coopActions += 1;
+    }
+  }
+  let guard = 0;
+  while (guard++ < 60) {
+    if (!skip.has('boat') && me.stock.boat < ownBoats && buy(gs, me.id, 'boat')) continue;
+    if (!skip.has('kit') && me.stock.kit < ownKits && buy(gs, me.id, 'kit')) continue;
+    let helped = false;
+    for (const n of neediest(gs)) {
+      if (!skip.has('boat') && n.stock.boat < 3 && buy(gs, n.id, 'boat')) { helped = true; break; }
+      if (!skip.has('kit') && n.stock.kit < 2 && buy(gs, n.id, 'kit')) { helped = true; break; }
+    }
+    if (helped) { stats.coopActions += 1; continue; }
+    if (!skip.has('fun') && me.morale < 45 && buy(gs, me.id, 'fun')) continue;
+    if (!skip.has('reserve') && buy(gs, me.id, 'reserve')) continue;
+    break;
+  }
+}
+
+/** Cooperation with a rescue-first home posture and no levees anywhere. */
+function cooperativeRescue(gs, stats) {
+  cooperative(gs, stats, new Set(), { ownBoats: 5, ownKits: 4, levees: false });
+}
+
+/** The July 2026 "cooperative" script, kept for the record: it funds a levee
+ *  at home and arms only the next town downstream (exports the externality). */
+function cooperativeJuly(gs, stats) {
   const me = playerMuni(gs);
   for (const p of gs.proposals) {
     if (p.accepted === null) acceptProposal(gs, p.id);
-    if (p.accepted && !skip.has(p.askInv) && buy(gs, p.from, p.askInv)) stats.coopActions += 1;
+    if (p.accepted && buy(gs, p.from, p.askInv)) stats.coopActions += 1;
   }
-  if (!skip.has('levee') && me.def.trait !== 'absorptive' && me.leveesBuilt < 1) buy(gs, me.id, 'levee');
+  if (me.def.trait !== 'absorptive' && me.leveesBuilt < 1) buy(gs, me.id, 'levee');
   const down = downstreamOf(gs, me.id);
   let guard = 0;
   while (guard++ < 40) {
-    if (!skip.has('boat') && me.stock.boat < 3 && buy(gs, me.id, 'boat')) continue;
-    if (!skip.has('boat') && down && muniById(gs, down.id).stock.boat < 2 && buy(gs, down.id, 'boat')) {
+    if (me.stock.boat < 3 && buy(gs, me.id, 'boat')) continue;
+    if (down && muniById(gs, down.id).stock.boat < 2 && buy(gs, down.id, 'boat')) {
       stats.coopActions += 1; continue;
     }
-    if (!skip.has('kit') && me.stock.kit < 2 && buy(gs, me.id, 'kit')) continue;
-    if (!skip.has('fun') && me.morale < 45 && buy(gs, me.id, 'fun')) continue;
-    if (!skip.has('reserve') && buy(gs, me.id, 'reserve')) continue;
+    if (me.stock.kit < 2 && buy(gs, me.id, 'kit')) continue;
+    if (me.morale < 45 && buy(gs, me.id, 'fun')) continue;
+    if (buy(gs, me.id, 'reserve')) continue;
     break;
   }
 }
@@ -133,20 +211,30 @@ export const STRATEGIES = {
   passive,
   selfish,
   cooperative: (gs, stats) => cooperative(gs, stats),
+  'cooperative-rescue': cooperativeRescue,
+  'cooperative-july': cooperativeJuly,
   floodwall,
   'rescue-first': rescueFirst,
   random: randomPolicy,
 };
 
+/** Which strategies count as cooperative for the thesis check. The July script
+ *  is a reference row only: it is in neither group of the thesis check. */
+export const COOPERATIVE = new Set(['cooperative', 'cooperative-rescue']);
+export const REFERENCE_ONLY = new Set(['cooperative-july']);
+
 /** cooperative, but one investment type is never bought (ablation). */
 const coopWithout = (type) => (gs, stats) => cooperative(gs, stats, new Set([type]));
 
-/** cooperative, plus: play the given card whenever it is drawn and playable. */
+/** cooperative WITHOUT its own card play: the base of the card screen. */
+const coopNoCards = (gs, stats) => cooperative(gs, stats, new Set(), { cards: false });
+
+/** coopNoCards, plus: play the given card whenever it is drawn and playable. */
 const coopWithCard = (cardId) => (gs, stats) => {
   const card = CARD_BY_ID[cardId];
   const target = card.target === 'choose' ? gs.playerMuniId : null;
   if (canPlayCard(gs, cardId, target) && playCard(gs, cardId, target)) stats.cardPlays += 1;
-  cooperative(gs, stats);
+  coopNoCards(gs, stats);
 };
 
 // --- Campaign runner --------------------------------------------------------------
@@ -155,18 +243,25 @@ function runCampaign(seed, playerMuniId, policy) {
   const gs = createGameState(playerMuniId, createSeededRng(seed));
   const stats = { coopActions: 0, cardPlays: 0 };
   const severities = [];
+  let rareAt = null;      // round after which the rare tier is unlocked
   let guard = 0;
   while (gs.phase !== PHASE.GAMEOVER && guard++ < BALANCE.totalRounds + 5) {
     policy(gs, stats);
     runAllAI(gs);
     resolveRound(gs);
     severities.push(gs.regionalSeverity);
+    if (rareAt == null && gs.research >= TIER_UNLOCK.rare) rareAt = gs.round;
     advanceRound(gs);
   }
   const score = regionalScore(gs);
   const me = playerMuni(gs);
+  const standing = cityStanding(gs);
   return {
     score, stats, severities,
+    // Rare cards can only be drawn if unlocked before the final season.
+    rareUnlocked: rareAt != null && rareAt < BALANCE.totalRounds,
+    reElection: standing.reElection, standingScore: standing.score,
+    victims: Object.fromEntries(gs.munis.map((m) => [m.id, m.deathsTotal])),
     own: { deaths: me.deathsTotal, damage: me.damageTotal, morale: me.morale },
     destroyed: gs.munis.filter((m) => m.destroyed).map((m) => m.id),
   };
@@ -193,10 +288,15 @@ function cell(policy, townId, seeds) {
     destroyed: mean(runs.map((r) => r.score.destroyed)),
     coopActions: mean(runs.map((r) => r.stats.coopActions)),
     cardPlays: mean(runs.map((r) => r.stats.cardPlays)),
+    reElection: mean(runs.map((r) => r.reElection)),
+    standingScore: mean(runs.map((r) => r.standingScore)),
+    rareUnlocked: mean(runs.map((r) => (r.rareUnlocked ? 1 : 0))),
     // Per-run series in (seed) order — kept so variants can be compared PAIRED
     // (same town, same seed), which cancels most of the flood-draw variance.
     runDeaths: runs.map((r) => r.score.totalDeaths),
     runDamage: runs.map((r) => r.score.totalDamage),
+    runOwnDeaths: runs.map((r) => r.own.deaths),
+    victims: Object.fromEntries(MUNICIPALITIES.map((m) => [m.id, mean(runs.map((r) => r.victims[m.id]))])),
   };
 }
 
@@ -206,10 +306,13 @@ function policyRow(policy, seeds) {
   for (const m of MUNICIPALITIES) perTown[m.id] = cell(policy, m.id, seeds);
   const towns = Object.values(perTown);
   const agg = {};
-  for (const k of ['regionalDeaths', 'regionalDamage', 'ownDeaths', 'ownDamage', 'avgMorale', 'destroyed', 'coopActions', 'cardPlays']) {
+  for (const k of ['regionalDeaths', 'regionalDamage', 'ownDeaths', 'ownDamage', 'avgMorale', 'destroyed', 'coopActions', 'cardPlays', 'reElection', 'standingScore', 'rareUnlocked']) {
     agg[k] = mean(towns.map((t) => t[k]));
   }
   agg.deathsSem = sem(towns.flatMap((t) => t.runDeaths));
+  agg.ownDeathsSem = sem(towns.flatMap((t) => t.runOwnDeaths));
+  // Where the deaths fall (victim town), averaged over all player seats.
+  agg.victims = Object.fromEntries(MUNICIPALITIES.map((m) => [m.id, mean(towns.map((t) => t.victims[m.id]))]));
   return { perTown, agg };
 }
 
@@ -238,6 +341,29 @@ function severityDrawSection() {
   return lines.join('\n');
 }
 
+/** Region-wide deaths in ONE season at each regional severity (no levees). */
+function regimeSection() {
+  const configs = [
+    ['No preparation, morale 60', { boat: 0, kit: 0 }, 60],
+    ['No preparation, morale 0 (every town in chaos)', { boat: 0, kit: 0 }, 0],
+    ['1 boat + 1 kit per town, morale 60', { boat: 1, kit: 1 }, 60],
+    ['3 boats + 2 kits per town, morale 80', { boat: 3, kit: 2 }, 80],
+  ];
+  const lines = [
+    `| Preparation | ${SEVERITY_LABELS.slice(1).join(' | ')} |`,
+    '|---|---:|---:|---:|---:|',
+  ];
+  for (const [label, invest, morale] of configs) {
+    const input = MUNICIPALITIES.map((d) => ({
+      id: d.id, pos: d.pos, population: d.population, exposure: EXPOSURE[d.id],
+      morale, trait: d.trait, invest: { levee: 0, ...invest },
+    }));
+    const cells = [1, 2, 3, 4].map((sev) => resolveFlood(input, sev).reduce((a, r) => a + r.deaths, 0));
+    lines.push(`| ${label} | ${cells.join(' | ')} |`);
+  }
+  return lines.join('\n');
+}
+
 function strategyMatrix(rows) {
   const townCols = MUNICIPALITIES.map((m) => m.def?.name || m.name);
   const lines = [
@@ -253,11 +379,11 @@ function strategyMatrix(rows) {
 
 function strategySummary(rows) {
   const lines = [
-    '| Strategy | Regional deaths (±SEM) | Regional damage €M | Own deaths | Own damage €M | Avg morale | Towns lost | Coop acts/campaign |',
-    '|---|---:|---:|---:|---:|---:|---:|---:|',
+    '| Strategy | Regional deaths (±SEM) | Regional damage €M | Own deaths (±SEM) | Own damage €M | Avg morale | Towns lost | Coop acts/campaign | Re-election % | Regional score | Rare tier unlocked |',
+    '|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|',
   ];
   for (const [name, { agg }] of Object.entries(rows)) {
-    lines.push(`| ${name} | ${fmt(agg.regionalDeaths)} ± ${fmt(agg.deathsSem)} | ${fmt(agg.regionalDamage, 0)} | ${fmt(agg.ownDeaths)} | ${fmt(agg.ownDamage, 0)} | ${fmt(agg.avgMorale, 0)} | ${fmt(agg.destroyed, 2)} | ${fmt(agg.coopActions)} |`);
+    lines.push(`| ${name} | ${fmt(agg.regionalDeaths)} ± ${fmt(agg.deathsSem)} | ${fmt(agg.regionalDamage, 0)} | ${fmt(agg.ownDeaths, 2)} ± ${fmt(agg.ownDeathsSem, 2)} | ${fmt(agg.ownDamage, 0)} | ${fmt(agg.avgMorale, 0)} | ${fmt(agg.destroyed, 2)} | ${fmt(agg.coopActions)} | ${fmt(agg.reElection)} | ${fmt(agg.standingScore)} | ${fmt(agg.rareUnlocked * 100, 1)} % |`);
   }
   return lines.join('\n');
 }
@@ -276,7 +402,8 @@ function ablationSection(base, seeds) {
   return lines.join('\n');
 }
 
-function cardSection(base, seeds) {
+function cardSection(seeds) {
+  const base = policyRow(coopNoCards, seeds);
   const lines = [
     '| Card (tier) | Plays/campaign | Δ regional deaths (paired ±SEM) | Δ regional damage €M (paired ±SEM) |',
     '|---|---:|---:|---:|',
@@ -320,6 +447,60 @@ function sensitivitySection(base) {
   return lines.join('\n');
 }
 
+/**
+ * The pass criterion, fixed in advance (VGC 2025 review, decision 1): the best
+ * cooperative strategy beats the best non-cooperative one on regional deaths by
+ * more than two standard errors, AND selfish keeps the lowest own-town deaths.
+ * Both the paired SE (same town, same seed) and the unpaired SE are reported;
+ * the check passes only if the difference clears BOTH.
+ */
+export function thesisCheck(rows) {
+  const entries = Object.entries(rows).filter(([n]) => !REFERENCE_ONLY.has(n));
+  const coop = entries.filter(([n]) => COOPERATIVE.has(n));
+  const non = entries.filter(([n]) => !COOPERATIVE.has(n));
+  const best = (list) => list.slice().sort((a, b) => a[1].agg.regionalDeaths - b[1].agg.regionalDeaths)[0];
+  const [cName, cRow] = best(coop);
+  const [nName, nRow] = best(non);
+  const paired = pairedDelta(cRow, nRow, 'runDeaths');
+  const diff = cRow.agg.regionalDeaths - nRow.agg.regionalDeaths;
+  const unpairedSe = Math.sqrt(cRow.agg.deathsSem ** 2 + nRow.agg.deathsSem ** 2);
+  const regionalPass = diff < -2 * paired.sem && diff < -2 * unpairedSe;
+  const byOwn = Object.entries(rows).slice().sort((a, b) => a[1].agg.ownDeaths - b[1].agg.ownDeaths);
+  const ownPass = byOwn[0][0] === 'selfish';
+  return { cName, cRow, nName, nRow, diff, paired, unpairedSe, regionalPass, byOwn, ownPass, pass: regionalPass && ownPass };
+}
+
+function thesisSection(rows) {
+  const t = thesisCheck(rows);
+  const runner = t.byOwn.find(([n]) => n !== 'selfish');
+  const lines = [
+    'Criterion, fixed before the run: the best cooperative strategy (cooperative, cooperative-rescue) beats the best',
+    'non-cooperative strategy (passive, selfish, floodwall, rescue-first, random) on mean regional deaths by more than',
+    'two standard errors, AND the selfish strategy still has the lowest own-town deaths. The cooperative-july row is a',
+    'reference only and belongs to neither group.',
+    '',
+    '| Test | Value | Threshold | Result |',
+    '|---|---:|---:|---|',
+    `| Best cooperative (${t.cName}): regional deaths | ${fmt(t.cRow.agg.regionalDeaths, 2)} ± ${fmt(t.cRow.agg.deathsSem, 2)} | | |`,
+    `| Best non-cooperative (${t.nName}): regional deaths | ${fmt(t.nRow.agg.regionalDeaths, 2)} ± ${fmt(t.nRow.agg.deathsSem, 2)} | | |`,
+    `| Difference, paired SE (same town and seed) | ${signed(t.diff, 2)} ± ${fmt(t.paired.sem, 2)} | < ${fmt(-2 * t.paired.sem, 2)} | ${t.diff < -2 * t.paired.sem ? 'pass' : 'FAIL'} (${fmt(Math.abs(t.diff / t.paired.sem), 1)} SE) |`,
+    `| Difference, unpaired SE | ${signed(t.diff, 2)} ± ${fmt(t.unpairedSe, 2)} | < ${fmt(-2 * t.unpairedSe, 2)} | ${t.diff < -2 * t.unpairedSe ? 'pass' : 'FAIL'} (${fmt(Math.abs(t.diff / t.unpairedSe), 1)} SE) |`,
+    `| Lowest own-town deaths | ${t.byOwn[0][0]} ${fmt(t.byOwn[0][1].agg.ownDeaths, 2)} ± ${fmt(t.byOwn[0][1].agg.ownDeathsSem, 2)} (next: ${runner[0]} ${fmt(runner[1].agg.ownDeaths, 2)} ± ${fmt(runner[1].agg.ownDeathsSem, 2)}) | selfish lowest | ${t.ownPass ? 'pass' : 'FAIL'} |`,
+    '',
+    `**Thesis check: ${t.pass ? 'PASS' : 'FAIL'}.**`,
+    '',
+    `Where the difference falls (mean deaths per campaign in each victim town, ${t.cName} vs ${t.nName}, all player seats):`,
+    '',
+    `| Victim town | ${MUNICIPALITIES.map((m) => m.name).join(' | ')} |`,
+    `|---|${'---:|'.repeat(MUNICIPALITIES.length)}`,
+    `| ${t.cName} | ${MUNICIPALITIES.map((m) => fmt(t.cRow.agg.victims[m.id], 2)).join(' | ')} |`,
+    `| ${t.nName} | ${MUNICIPALITIES.map((m) => fmt(t.nRow.agg.victims[m.id], 2)).join(' | ')} |`,
+    '',
+    `The own-town criterion is met on the point estimate; the selfish margin over the runner-up is ${fmt(runner[1].agg.ownDeaths - t.byOwn[0][1].agg.ownDeaths, 2)} deaths per campaign (combined SE ${fmt(Math.sqrt(runner[1].agg.ownDeathsSem ** 2 + t.byOwn[0][1].agg.ownDeathsSem ** 2), 2)}).`,
+  ];
+  return lines.join('\n');
+}
+
 function observations(rows) {
   const out = [];
   const byDeaths = Object.entries(rows).sort((a, b) => a[1].agg.regionalDeaths - b[1].agg.regionalDeaths);
@@ -350,8 +531,12 @@ function main() {
 Generated by \`node tools/simulate.mjs --seeds ${SEEDS}\` on ${new Date().toISOString().slice(0, 10)}.
 Every cell replays full 10-round campaigns over seeds 1..${SEEDS} for each of the
 seven municipalities — identical seeds across strategies, so rows are directly
-comparable. This report proposes no rule changes; target intervals are a design
-decision for the team.
+comparable. Strategy definitions are in \`tools/simulate.mjs\`; \`cooperative-july\`
+is the July 2026 "cooperative" script, kept as a reference row.
+
+## Casualty regime (one season, region-wide, no levees)
+
+${regimeSection()}
 
 ## Severity draw sanity check
 
@@ -373,17 +558,22 @@ ${ablationSection(rows.cooperative, SEEDS)}
 
 ## Marginal value of each power card (played whenever drawn, on top of *cooperative*)
 
-Plays/campaign reflects real draw rates (rarer tiers unlock via research and are
-drawn less often, so their estimates are noisier). Caveat: these configs play
-ONLY the measured card, so the four-card hand silts up with commons and
-research-gated cards may never be drawn at all (0.00 plays) — reading a rare
-card's true value needs a dedicated card-playing policy, not this screen.
+Base: *cooperative* with its own card play switched off; each row adds ONLY the
+measured card, played whenever drawn. Plays/campaign reflects real draw rates
+(rarer tiers unlock via research and are drawn less often, so their estimates
+are noisier). Caveat: the four-card hand silts up with the unplayed commons, so
+research-gated cards may never be drawn at all (0.00 plays) even when their
+tier is unlocked; reading a rare card's value needs a card-playing policy.
 
-${cardSection(rows.cooperative, SEEDS)}
+${cardSection(SEEDS)}
 
 ## Sensitivity of the *cooperative* row to key constants (±20 %, ${SENS_SEEDS} seeds)
 
 ${sensitivitySection(rows)}
+
+## Thesis check
+
+${thesisSection(rows)}
 
 ## Observations (computed from the tables above)
 

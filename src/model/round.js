@@ -8,7 +8,7 @@
 // =============================================================================
 
 import { BALANCE, SEVERITY, EVENTS, PRODUCERS } from '../data/gameData.js';
-import { drawRegionalSeverity, resolveFlood } from './floodModel.js';
+import { drawRegionalSeverity, severityFromDraw, resolveFlood } from './floodModel.js';
 import { PHASE, initPending, muniById, playerMuni, oceanaLost } from './state.js';
 import { boatsWereSent, betrayalEvents } from './events.js';
 import { resolveProposals, generateProposals } from './diplomacy.js';
@@ -20,7 +20,10 @@ import { shuffle } from './rng.js';
 export function startRoundEnvironment(gs) {
   gs.forecastLevel = 0;
   gs.eventFlags = {};
-  gs.upcomingSeverity = drawRegionalSeverity(gs.rng); // hidden; revealed via forecast
+  // One rng call, exactly as drawRegionalSeverity makes it; the latent draw is
+  // kept for the end-of-campaign record panel.
+  gs.upcomingDraw = gs.rng();
+  gs.upcomingSeverity = severityFromDraw(gs.upcomingDraw); // hidden; revealed via forecast
 
   if (!gs.eventDeck.length) gs.eventDeck = shuffle([...EVENTS], gs.rng);
   let ev = gs.eventDeck.pop();
@@ -31,14 +34,32 @@ export function startRoundEnvironment(gs) {
   // Gentle on-ramp: the first two seasons stay calm (no damage, no deaths) so the
   // player can learn the systems and prepare before the river turns dangerous.
   if (gs.round <= 2) gs.upcomingSeverity = SEVERITY.NONE;
+
+  // Where the truth sits inside the forecast band: one uniform draw per round,
+  // ALWAYS consumed here (last), whatever the event or forecast level, so the
+  // rng order stays fixed. See docs/architecture/model.md.
+  gs.forecastU = gs.rng();
 }
 
-/** The forecast band shown to the player: tightens around the truth as sharpened. */
+/**
+ * The forecast band shown to the player. Its WIDTH depends only on the forecast
+ * level (BALANCE.forecast.bandWidth: 2 -> 1 -> 0 severity steps), and the true
+ * severity sits at a uniformly random position among the placements that keep
+ * the band inside None..Catastrophic. So the band never encodes the truth: at
+ * a given level every band can come from more than one severity (until the
+ * last paid sharpening makes it exact). The placement draw is gs.forecastU.
+ */
 export function forecastBand(gs) {
   if (oceanaLost(gs)) return { low: 0, high: 4, exact: false, blind: true }; // no data hub → no intel
   const t = gs.upcomingSeverity ?? 0;
-  const w = BALANCE.forecast.maxLevel - gs.forecastLevel; // 2 → 1 → 0
-  return { low: Math.max(0, t - w), high: Math.min(4, t + w), exact: w === 0, blind: false };
+  const widths = BALANCE.forecast.bandWidth;
+  const w = widths[Math.min(gs.forecastLevel, widths.length - 1)];
+  if (w === 0) return { low: t, high: t, exact: true, blind: false };
+  const lowMin = Math.max(SEVERITY.NONE, t - w);
+  const lowMax = Math.min(t, SEVERITY.CATASTROPHIC - w);
+  const u = gs.forecastU ?? 0;
+  const low = lowMin + Math.min(lowMax - lowMin, Math.floor(u * (lowMax - lowMin + 1)));
+  return { low, high: low + w, exact: false, blind: false };
 }
 
 export function canSharpenForecast(gs) {
@@ -77,7 +98,14 @@ function buildFloodInput(gs) {
  * exactly what the real flood would do given the current preparations.
  */
 export function previewFlood(gs, severity) {
-  return resolveFlood(buildFloodInput(gs), severity, gs.pending);
+  // Same flags as resolveRound (e.g. Chemical Inspection's noToxic), applied to
+  // a copy so the preview never mutates gs.pending.
+  return resolveFlood(buildFloodInput(gs), severity, floodEffects(gs));
+}
+
+/** The this-round flood modifiers, plus the event flags resolveFlood reads. */
+function floodEffects(gs) {
+  return { ...gs.pending, noToxic: !!gs.eventFlags?.noToxic };
 }
 
 export function resolveRound(gs) {
@@ -85,9 +113,11 @@ export function resolveRound(gs) {
   // The flood was pre-drawn at the start of the round (the forecast hinted at it).
   const severity = gs.upcomingSeverity != null ? gs.upcomingSeverity : drawRegionalSeverity(gs.rng);
   gs.regionalSeverity = severity;
+  // Live seasons (after the calm on-ramp) feed the record-seasons panel.
+  if (gs.round > 2 && gs.upcomingDraw != null) gs.seasonDraws.push(gs.upcomingDraw);
   gs.pending.noToxic = !!gs.eventFlags.noToxic; // Chemical Inspection event
 
-  const results = resolveFlood(buildFloodInput(gs), severity, gs.pending);
+  const results = resolveFlood(buildFloodInput(gs), severity, floodEffects(gs));
   gs.lastResults = results;
 
   let tradersDamaged = false;
@@ -99,7 +129,7 @@ export function resolveRound(gs) {
     m.damageTotal += r.damage;
 
     const deathFrac = r.deaths / m.population;
-    if (r.deaths > 0) m.morale = Math.max(0, m.morale - Math.round(deathFrac * 600));
+    if (r.deaths > 0) m.morale = Math.max(0, m.morale - Math.round(deathFrac * BALANCE.deathMoraleFactor));
     else if (r.effSeverity <= SEVERITY.MINOR) m.morale = Math.min(100, m.morale + 4);
 
     // Equipment attrition — floods sink/wreck a fraction of the persistent fleet.
@@ -123,7 +153,12 @@ export function resolveRound(gs) {
 
   // Research budget grows while Oceana survives (funds rare cards).
   const oceana = gs.munis.find((m) => m.def.trait === 'dataVuln');
+  // After Oceana is lost the region's universities and gauging stations keep a
+  // slower research trickle going, but only in quiet seasons (severity at most
+  // researchQuietMaxSeverity): protecting Oceana unlocks the rare tier sooner
+  // and more surely, losing it no longer locks the rare tier out for good.
   if (oceana && !oceana.destroyed) gs.research += BALANCE.researchPerSafeOceana;
+  else if (severity <= BALANCE.researchQuietMaxSeverity) gs.research += BALANCE.researchPerQuietSeason;
 
   // Funds chain: the economic engine (Trader's) and the tax base (Millington)
   // both cut every town's budget next round when they flood.
