@@ -1,0 +1,21 @@
+{
+  "title": "POVODEŇ (Flood): a pixel-art serious game for inter-municipal flood cooperation",
+  "version": "1.0-vgc2025",
+  "upload_type": "software",
+  "license": "AGPL-3.0-or-later",
+  "description": "A browser-based pixel-art serious game for mayors and municipal crisis staff on a shared river. Players prepare their town for ten flood seasons, trade with six computer-controlled neighbours and are scored twice: on re-election prospects and on the regional outcome. Includes a headless balance simulator, characterization tests and balance reports. Developed under the RUR project (Region to University, University to Region) at Jan Evangelista Purkyně University, Ústí nad Labem.",
+  "creators": [
+    {"name": "Binter, Jakub", "affiliation": "Jan Evangelista Purkyně University, Ústí nad Labem", "orcid": "0000-0001-5304-2130"},
+    {"name": "Prossinger, Hermann", "affiliation": "Jan Evangelista Purkyně University; University of Vienna", "orcid": "0000-0002-1114-7687"},
+    {"name": "Stachoň, Martin", "affiliation": "Jan Evangelista Purkyně University; Mendel University in Brno", "orcid": "0000-0001-7318-6430"},
+    {"name": "Čermáková, Natalie", "affiliation": "Jan Evangelista Purkyně University", "orcid": "0009-0007-3068-6102"},
+    {"name": "Slavíková, Lenka", "affiliation": "Jan Evangelista Purkyně University", "orcid": "0000-0002-4393-7835"},
+    {"name": "Říha, Daniel", "affiliation": "Charles University, Prague", "orcid": "0000-0001-5142-4485"},
+    {"name": "Eck, Eduard", "affiliation": "Warhorse Studios, Prague"},
+    {"name": "Grasl, Tomáš", "affiliation": "PixelDen, independent developer"}
+  ],
+  "keywords": ["serious game", "flood risk management", "inter-municipal cooperation", "pixel art", "Phaser", "Ústí nad Labem"],
+  "related_identifiers": [
+    {"identifier": "https://glitch-maker-jakub.github.io/POVODEN/", "relation": "isSupplementTo", "scheme": "url"}
+  ]
+}
